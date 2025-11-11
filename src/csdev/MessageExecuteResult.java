@@ -2,6 +2,11 @@ package csdev;
 
 import java.io.Serializable;
 
+/**
+ * <p>MessageExecuteResult class: command execution result
+ * @author cin-tie
+ * @version 1.0
+ */
 public class MessageExecuteResult extends MessageResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
