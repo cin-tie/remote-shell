@@ -11,9 +11,9 @@ public class MessageConnect extends Message implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public String username;
-    public String usernameFull;
-    public String password;
+    public String username;         // Nickname
+    public String usernameFull;     // Full name
+    public String password;         // Password for auth
 
     public MessageConnect(String username, String usernameFull){
         super(Protocol.CMD_CONNECT);

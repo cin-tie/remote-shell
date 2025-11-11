@@ -11,7 +11,8 @@ public class MessageResult extends Message implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private int errorCode;
+    private int errorCode;          // Code of error(if exists)
+    private String errorMessage;    // Error message(if exists)
 
     public int getErrorCode() {
         return errorCode;
@@ -20,8 +21,6 @@ public class MessageResult extends Message implements Serializable {
     public boolean Error(){
         return errorCode != Protocol.RESULT_CODE_OK;
     }
-
-    private String errorMessage;
 
     public String getErrorMessage() {
         return errorMessage;

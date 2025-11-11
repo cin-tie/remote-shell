@@ -11,7 +11,7 @@ public class Message implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private byte id;
+    private byte id;    // Message id
 
     public byte getId(){
         return id;
