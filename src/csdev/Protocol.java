@@ -6,13 +6,13 @@ package csdev;
  * @version 1.0
  */
 interface CMD{
-    static final byte CMD_CONNECT     = 1;  // Connect
-    static final byte CMD_DISCONNECT  = 2;  // Disconnect
-    static final byte CMD_EXECUTE     = 3;  // Execute shell command
-    static final byte CMD_UPLOAD      = 4;  // Upload file to server
-    static final byte CMD_DOWNLOAD    = 5;  // Download file from server
-    static final byte CMD_CHDIR       = 6;  // Change directory
-    static final byte CMD_GETDIR      = 7;  // Get current directory
+    byte CMD_CONNECT     = 1;  // Connect
+    byte CMD_DISCONNECT  = 2;  // Disconnect
+    byte CMD_EXECUTE     = 3;  // Execute shell command
+    byte CMD_UPLOAD      = 4;  // Upload file to server
+    byte CMD_DOWNLOAD    = 5;  // Download file from server
+    byte CMD_CHDIR       = 6;  // Change directory
+    byte CMD_GETDIR      = 7;  // Get current directory
 }
 
 /**
@@ -21,8 +21,8 @@ interface CMD{
  * @version 1.0
  */
 interface RESULT{
-    static final int RESULT_CODE_OK    = 1;  // Ok
-    static final int RESULT_CODE_ERROR = -1; // Error
+    int RESULT_CODE_OK    = 1;  // Ok
+    int RESULT_CODE_ERROR = -1; // Error
 }
 
 /**
@@ -31,7 +31,7 @@ interface RESULT{
  * @version 1.0
  */
 interface PORT{
-    static final int PORT = 8072;
+    int PORT = 8072;
 }
 
 /**
