@@ -2,6 +2,11 @@ package csdev;
 
 import java.io.Serializable;
 
+/**
+ * <p>Message base class
+ * @author cin-tie
+ * @version 1.0
+ */
 public class Message implements Serializable {
 
     private static final long serialVersionUID = 1L;
