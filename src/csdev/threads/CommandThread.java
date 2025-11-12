@@ -2,6 +2,11 @@ package csdev.threads;
 
 import java.util.HashMap;
 
+/**
+ * <p>Command processor base class
+ * @author cin-tie
+ * @version 1.0
+ */
 public class CommandThread extends Thread implements CmdProcessor{
 
     protected HashMap<String, CmdHandler> smap = // short commands
