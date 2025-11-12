@@ -1,6 +1,11 @@
 package csdev.server;
 
-import java.util.logging.Logger;
+import csdev.Protocol;
+import csdev.threads.ServerStopThread;
+import csdev.utils.Logger;
+
+import java.io.IOException;
+import java.net.ServerSocket;
 
 /**
  * <p>Main class of server application for remote shell
@@ -11,8 +16,22 @@ import java.util.logging.Logger;
 public class ServerMain {
 
     private static int MAX_USERS = 50;
-    private static int SOCKET_TIMEOUT = 1000;
+    private static ServerSocket serverSocket;
 
     public static void main(String[] args) {
+        Logger.logServer("Starting remote-shell server...");
+
+        try(ServerSocket serv = new ServerSocket(Protocol.PORT)) {
+
+            serverSocket = serv;
+            Logger.logServer("Server initialized on port " + serverSocket.getLocalPort());
+
+            ServerStopThread stopThread = new ServerStopThread();
+
+        } catch (IOException e){
+            Logger.logError("Server error: " + e.getMessage());
+        } finally {
+
+        }
     }
 }
