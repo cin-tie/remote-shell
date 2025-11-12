@@ -1,4 +1,6 @@
-package csdev;
+package csdev.messages;
+
+import csdev.Protocol;
 
 import java.io.Serializable;
 
