@@ -120,23 +120,23 @@ public class ServerMain {
         }
     }
 
-    public static ServerThread registerUser(String userNick, ServerThread user) {
+    public static ServerThread registerUser(String username, ServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread old = ServerMain.users.get(userNick);
+            ServerThread old = ServerMain.users.get(username);
             if(old == null) {
-                ServerMain.users.put(userNick, user);
-                Logger.logInfo("Registered user: " + userNick + "(Total: " + users.size() + ")");
+                ServerMain.users.put(username, user);
+                Logger.logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
             }
             return old;
         }
     }
 
-    public static ServerThread setUser(String userNic, ServerThread user) {
+    public static ServerThread setUser(String username, ServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread res = ServerMain.users.put(userNic, user);
+            ServerThread res = ServerMain.users.put(username, user);
             if (user == null) {
-                ServerMain.users.remove(userNic);
-                Logger.logInfo("User unregistered: " + userNic + " (Remaining: " + users.size() + ")");
+                ServerMain.users.remove(username);
+                Logger.logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
             }
             return res;
         }
