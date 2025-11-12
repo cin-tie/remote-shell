@@ -17,21 +17,21 @@ public class MessageConnectResult extends MessageResult implements Serializable 
 
     public MessageConnectResult(String errorMessage) {
         super(Protocol.CMD_CONNECT, errorMessage);
-        this.serviceOS = "";
+        this.serverOS = "";
         this.currentDir = "";
         this.serverVersion = "";
     }
 
     public MessageConnectResult() {
         super(Protocol.CMD_CONNECT);
-        this.serviceOS = "";
+        this.serverOS = "";
         this.currentDir = "";
         this.serverVersion = "";
     }
 
     public MessageConnectResult(String serviceOS, String currentDir, String serverVersion) {
         super(Protocol.CMD_CONNECT);
-        this.serviceOS = serviceOS;
+        this.serverOS = serviceOS;
         this.currentDir = currentDir;
         this.serverVersion = serverVersion;
     }
