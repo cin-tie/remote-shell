@@ -11,7 +11,7 @@ public class MessageConnectResult extends MessageResult implements Serializable 
 
     private static final long serialVersionUID = 1L;
 
-    public String serviceOS;        // Server operating system
+    public String serverOS;        // Server operating system
     public String currentDir;       // Initial working directory
     public String serverVersion;    // Server software version
 
