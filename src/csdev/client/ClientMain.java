@@ -67,7 +67,19 @@ public class ClientMain {
             ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream())){
 
             Session s = new Session(username, usernameFull);
-            if(open)
+            if(openSession(s, is, os, in)){
+                try {
+                    displayWelcome(s);
+                    while (true) {
+                        Message msg = getCommand(s, in);
+                        if (!processCommand(s, msg, is, os)) {
+                            break;
+                        }
+                    }
+                } finally {
+                    closeSession(s, os);
+                }
+            }
         } catch (Exception e){
             Logger.logError("Session Error: " + e.getMessage());
         }
