@@ -34,11 +34,37 @@ public class ServerMain {
             Logger.logServer("Server initialized on port " + serverSocket.getLocalPort());
 
             ServerStopThread stopThread = new ServerStopThread();
+            stopThread.start();
+            Logger.logServer("Stop thread started");
+
+            while (true) {
+                Socket socket = accept(serv);
+                if (socket != null) {
+                    if (ServerMain.getNumUsers() < ServerMain.MAX_USERS) {
+                        Logger.logServer(socket.getInetAddress().getHostName() + " connected");
+                        ServerThread server = new ServerThread(socket);
+                        server.start();
+                    } else {
+                        Logger.logWarning(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
+                        socket.close();
+                    }
+                }
+                if (ServerMain.getStopFlag()) {
+                    break;
+                }
+            }
 
         } catch (IOException e){
             Logger.logError("Server error: " + e.getMessage());
         } finally {
+            stopAllUsers();
+            Logger.logServer("Server stopped");
+        }
 
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Logger.logDebug("Shutdown sleep interrupted");
         }
     }
 
