@@ -24,8 +24,8 @@ public class ServerThread extends Thread {
     private ObjectInputStream in;
     private InetAddress ip;
 
-    private String userNic = null;
-    private String userFullName;
+    private String username = null;
+    private String usernameFull;
     private String currentDirectory;
 
     private Object syncCommands = new Object();
@@ -83,7 +83,7 @@ public class ServerThread extends Thread {
                 }
 
                 if (msg != null) {
-                    Logger.logDebug("Received message type: " + msg.getId() + " from " + userNic);
+                    Logger.logDebug("Received message type: " + msg.getId() + " from " + username);
                     processMessage(msg);
                 }
 
@@ -107,7 +107,7 @@ public class ServerThread extends Thread {
                 break;
 
             case Protocol.CMD_DISCONNECT:
-                Logger.logInfo("Client requested disconnect: " + userNic);
+                Logger.logInfo("Client requested disconnect: " + username);
                 return;
 
             case Protocol.CMD_EXECUTE:
@@ -147,7 +147,7 @@ public class ServerThread extends Thread {
             Logger.logInfo("User connected successfully: " + msg.username);
             return true;
         } else{
-            MessageConnectResult result = new MessageConnectResult("User" + old.userFullName + " already connected as " + userNic);
+            MessageConnectResult result = new MessageConnectResult("User" + old.usernameFull + " already connected as " + username);
             out.writeObject(result);
             Logger.logWarning("Connection rejected - user already connected: " + msg.username);
             return false;
@@ -155,7 +155,7 @@ public class ServerThread extends Thread {
     }
 
     void executeCommand(MessageExecute msg) throws IOException {
-        Logger.logInfo("Executing command for " + userNic + ": " + msg.command);
+        Logger.logInfo("Executing command for " + username + ": " + msg.command);
 
         try {
             String command = msg.command;
@@ -188,7 +188,7 @@ public class ServerThread extends Thread {
                 process.destroyForcibly();
                 MessageExecuteResult result = new MessageExecuteResult("Command timed out after " + timeout + "ms");
                 out.writeObject(result);
-                Logger.logWarning("Command timeout for " + userNic + ": " + command);
+                Logger.logWarning("Command timeout for " + username + ": " + command);
                 return;
             }
 
@@ -199,17 +199,17 @@ public class ServerThread extends Thread {
             MessageExecuteResult result = new MessageExecuteResult(output, error, exitCode, executionTime, workingDir);
             out.writeObject(result);
 
-            Logger.logInfo("Command completed for " + userNic + " [exitCode=" + exitCode + ", time=" + executionTime + "ms]");
+            Logger.logInfo("Command completed for " + username + " [exitCode=" + exitCode + ", time=" + executionTime + "ms]");
 
         } catch(Exception e){
-            Logger.logError("Command execution failed for " + userNic + ": " + e.getMessage());
+            Logger.logError("Command execution failed for " + username + ": " + e.getMessage());
             MessageExecuteResult result = new MessageExecuteResult("Command execution failed: " + e.getMessage());
             out.writeObject(result);
         }
     }
 
     void uploadFile(MessageUpload msg) throws IOException {
-        Logger.logInfo("Uploading file from " + userNic + ": " + msg.fileName);
+        Logger.logInfo("Uploading file from " + username + ": " + msg.fileName);
 
         try {
             File targetDir = new File(msg.filePath.isEmpty() ? currentDirectory : msg.filePath);
@@ -237,14 +237,14 @@ public class ServerThread extends Thread {
 
             Logger.logInfo("File uploaded successfully: " + targetFile.getAbsolutePath() + " [size=" + msg.fileSize + " bytes, overwrite=" + fileExists + "]");
         } catch(Exception e){
-            Logger.logError("File upload failed for " + userNic + ": " + e.getMessage());
+            Logger.logError("File upload failed for " + username + ": " + e.getMessage());
             MessageUploadResult result = new MessageUploadResult("File upload failed: " + e.getMessage());
             out.writeObject(result);
         }
     }
 
     void downloadFile(MessageDownload msg) throws IOException {
-        Logger.logInfo("File download request from " + userNic + ": " + msg.filePath);
+        Logger.logInfo("File download request from " + username + ": " + msg.filePath);
 
         try {
             File file = new File(msg.filePath.isEmpty() ? currentDirectory : msg.filePath);
@@ -280,7 +280,7 @@ public class ServerThread extends Thread {
             out.writeObject(result);
             Logger.logInfo("File downloaded successfully: " + file.getAbsolutePath() + " [size=" + fileSize + " bytes, sent=" + length + " bytes, partial=" + isPartial + "]");
         } catch(Exception e){
-            Logger.logError("File download failed for " + userNic + ": " + e.getMessage());
+            Logger.logError("File download failed for " + username + ": " + e.getMessage());
             MessageDownloadResult result = new MessageDownloadResult(
                     "File download failed: " + e.getMessage());
             out.writeObject(result);
@@ -288,7 +288,7 @@ public class ServerThread extends Thread {
     }
 
     void changeDirectory(MessageChdir msg) throws IOException {
-        Logger.logInfo("Directory change request from " + userNic + ": " + msg.newDirectory);
+        Logger.logInfo("Directory change request from " + username + ": " + msg.newDirectory);
 
         try {
             File newDir = new File(msg.newDirectory);
@@ -303,9 +303,9 @@ public class ServerThread extends Thread {
 
             MessageChdirResult result = new MessageChdirResult(oldDirectory, currentDirectory);
             out.writeObject(result);
-            Logger.logInfo("Directory changed for " + userNic + " successfully: " + oldDirectory + " -> " + currentDirectory);
+            Logger.logInfo("Directory changed for " + username + " successfully: " + oldDirectory + " -> " + currentDirectory);
         } catch(Exception e){
-            Logger.logError("Directory change failed for " + userNic + ": " + e.getMessage());
+            Logger.logError("Directory change failed for " + username + ": " + e.getMessage());
             MessageChdirResult result = new MessageChdirResult(
                     "Directory change failed: " + e.getMessage());
             out.writeObject(result);
@@ -313,13 +313,13 @@ public class ServerThread extends Thread {
     }
 
     void getCurrentDirectory(MessageGetdir msg) throws IOException {
-        Logger.logDebug("Current directory request from " + userNic);
+        Logger.logDebug("Current directory request from " + username);
 
         try {
             MessageGetdirResult result = new MessageGetdirResult(currentDirectory);
             out.writeObject(result);
         } catch (Exception e) {
-            Logger.logError("Get directory failed for " + userNic + ": " + e.getMessage());
+            Logger.logError("Get directory failed for " + username + ": " + e.getMessage());
             MessageGetdirResult result = new MessageGetdirResult(
                     "Get directory failed: " + e.getMessage());
             out.writeObject(result);
@@ -340,7 +340,7 @@ public class ServerThread extends Thread {
     public void disconnect() {
         if(!disconnected){
             try {
-                Logger.logInfo("Client disconnected: " + ip.getHostName() + " (" + userNic + ")");
+                Logger.logInfo("Client disconnected: " + ip.getHostName() + " (" + username + ")");
                 unregister();
                 out.close();
                 in.close();
@@ -355,18 +355,18 @@ public class ServerThread extends Thread {
     }
 
     private void unregister(){
-        if(userNic != null){
-            ServerMain.setUser(userNic, null);
-            userNic = null;
+        if(username != null){
+            ServerMain.setUser(username, null);
+            username = null;
         }
     }
 
     private ServerThread register(String username, String usernameFull){
         ServerThread old = ServerMain.registerUser(username, this);
         if(old == null){
-            if(userNic == null){
-                userNic = username;
-                userFullName = usernameFull;
+            if(this.username == null){
+                this.username = username;
+                this.usernameFull = usernameFull;
                 Logger.logInfo("User '" + usernameFull + "' registered as '" + username + "' from " + ip.getHostAddress());
             }
         }
