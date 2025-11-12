@@ -32,19 +32,19 @@ public class ServerStopThread extends CommandThread {
             }
         });
 
-        putHandler(cmdStop, null,  new CmdHandler() {
+        putHandler(cmdStop, cmdStop,  new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) {
                 return onCmdQuit();
             }
         });
 
-        putHandler(cmdStatus, null, new CmdHandler() {
+        putHandler(cmdStatus, cmdStatus, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdStatus(); }
         });
 
-        putHandler(cmdHelp, null, new CmdHandler() {
+        putHandler(cmdHelp, cmdHelp, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdHelp(); }
         });
