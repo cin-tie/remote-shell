@@ -1,0 +1,44 @@
+package csdev;
+
+import java.io.Serializable;
+
+/**
+ * <p>MessageResult class: Server returns data base class
+ * @author cin-tie
+ * @version 1.0
+ */
+public class MessageResult extends Message implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    private int errorCode;          // Code of error(if exists)
+    private String errorMessage;    // Error message(if exists)
+
+    public int getErrorCode() {
+        return errorCode;
+    }
+
+    public boolean Error(){
+        return errorCode != Protocol.RESULT_CODE_OK;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    protected MessageResult() {
+        super();
+    }
+
+    protected MessageResult(byte id) {
+        super(id);
+        this.errorCode = Protocol.RESULT_CODE_OK;
+        this.errorMessage = "";
+    }
+
+    protected MessageResult(byte id, String errorMessage) {
+        super(id);
+        this.errorCode = Protocol.RESULT_CODE_ERROR;
+        this.errorMessage = errorMessage;
+    }
+}
