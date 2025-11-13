@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * <p>Server thread for handling client connections
  * @author cin-tie
- * @version 1.1
+ * @version 1.2
  */
 public class ServerThread extends Thread {
 
@@ -26,6 +26,7 @@ public class ServerThread extends Thread {
 
     private String username = null;
     private String usernameFull;
+    private volatile boolean gracefulShutdown = false;
     private String currentDirectory;
 
     private Object syncCommands = new Object();
@@ -68,14 +69,16 @@ public class ServerThread extends Thread {
         logDebug("Client session started: " + ip.getHostAddress());
 
         try {
-            while (true) {
+            while (!disconnected && !gracefulShutdown) {
                 Message msg = null;
                 try {
                     msg = (Message) in.readObject();
                 } catch (SocketTimeoutException e) {
                     continue;
                 } catch (IOException e) {
-                    logError("IO error reading from client: " + e.getMessage());
+                    if (!gracefulShutdown) {
+                        logError("IO error reading from client: " + e.getMessage());
+                    }
                     break;
                 } catch (ClassNotFoundException e) {
                     logError("Invalid message received: " + e.getMessage());
@@ -93,7 +96,9 @@ public class ServerThread extends Thread {
                 }
             }
         } catch (Exception e){
-            logError("Unexpected error in client session: " + e.getMessage());
+            if (!gracefulShutdown) {
+                logError("Unexpected error in client session: " + e.getMessage());
+            }
         } finally {
             disconnect();
         }
@@ -159,7 +164,7 @@ public class ServerThread extends Thread {
 
         try {
             String command = msg.command;
-            String workingDir = msg.workingDir.isEmpty() ? currentDirectory : msg.workingDir;
+            String workingDir = (msg.workingDir == null || msg.workingDir.isEmpty()) ? currentDirectory : msg.workingDir;
             long timeout = msg.timeMillis > 0 ? msg.timeMillis : 30000;
 
             ProcessBuilder pb = new ProcessBuilder();
@@ -337,16 +342,43 @@ public class ServerThread extends Thread {
         return sb.toString();
     }
 
+    public void gracefulDisconnect(){
+        gracefulShutdown = true;
+        try {
+            if (out != null && !disconnected) {
+                MessageDisconnect disconnectMsg = new MessageDisconnect("Server is shutting down");
+                out.writeObject(disconnectMsg);
+                out.flush();
+            }
+        } catch (IOException e) {
+            logDebug("Could not send graceful disconnect message: " + e.getMessage());
+        }
+
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        disconnect();
+    }
+
     public void disconnect() {
         if(!disconnected){
             try {
-                logInfo("Client disconnected: " + ip.getHostName() + " (" + username + ")");
+                if (gracefulShutdown) {
+                    logInfo("Client gracefully disconnected: " + ip.getHostName() + " (" + username + ")");
+                } else {
+                    logInfo("Client disconnected: " + ip.getHostName() + " (" + username + ")");
+                }
                 unregister();
-                out.close();
-                in.close();
-                socket.close();
+                if (out != null) out.close();
+                if (in != null) in.close();
+                if (socket != null) socket.close();
             } catch (IOException e) {
-                logError("Error while disconnecting: " + e.getMessage());
+                if (!gracefulShutdown) {
+                    logError("Error while disconnecting: " + e.getMessage());
+                }
             } finally {
                 disconnected = true;
                 this.interrupt();

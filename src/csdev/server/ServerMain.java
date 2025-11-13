@@ -14,7 +14,7 @@ import java.util.TreeMap;
  * <p>Main class of server application for remote shell
  * <p>Realized in console
  * @author cin-tie
- * @version 1.1
+ * @version 1.2
  */
 public class ServerMain {
 
@@ -55,9 +55,12 @@ public class ServerMain {
             }
 
         } catch (IOException e){
-            Logger.logError("Server error: " + e.getMessage());
+            if (!getStopFlag()) {
+                Logger.logError("Server error: " + e.getMessage());
+            }
         } finally {
             stopAllUsers();
+            waitForUsersToDisconnect();
             Logger.logServer("Server stopped");
         }
 
@@ -86,8 +89,30 @@ public class ServerMain {
         for (String user : users) {
             ServerThread ut = getUser(user);
             if (ut != null) {
-                ut.disconnect();
+                ut.gracefulDisconnect();
             }
+        }
+
+    }
+
+    private static void waitForUsersToDisconnect() {
+        int maxWaitTime = 10000; // 10 секунд максимум
+        int waitInterval = 100; // Проверяем каждые 100мс
+        int totalWaited = 0;
+
+        while (getNumUsers() > 0 && totalWaited < maxWaitTime) {
+            try {
+                Thread.sleep(waitInterval);
+                totalWaited += waitInterval;
+                Logger.logDebug("Waiting for users to disconnect... " + getNumUsers() + " remaining");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        if (getNumUsers() > 0) {
+            Logger.logWarning("Forcefully disconnecting " + getNumUsers() + " remaining users");
         }
     }
 

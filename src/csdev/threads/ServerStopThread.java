@@ -55,7 +55,6 @@ public class ServerStopThread extends CommandThread {
 
     public boolean onCmdQuit() {
         Logger.logInfo("Stop command recieved - shutting down server...");
-        ServerMain.setStopFlag(true);
         ServerMain.stopServer();
         return true;
     }

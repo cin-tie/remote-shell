@@ -70,8 +70,11 @@ public class ClientMain {
             if(openSession(s, is, os, in)){
                 try {
                     displayWelcome(s);
-                    while (true) {
+                    while (s.connected) {
                         Message msg = getCommand(s, in);
+                        if(msg == null) {
+                            break;
+                        }
                         if (!processCommand(s, msg, is, os)) {
                             break;
                         }
@@ -81,7 +84,13 @@ public class ClientMain {
                 }
             }
         } catch (Exception e){
-            Logger.logError("Session Error: " + e.getMessage());
+            if (!e.getMessage().contains("Server is shutting down") &&
+                    !e.getMessage().contains("Connection reset") &&
+                    !e.getMessage().contains("Обрыв канала")) {
+                Logger.logError("Session Error: " + e.getMessage());
+            } else {
+                Logger.logInfo("Disconnected from server: " + e.getMessage());
+            }
         }
     }
 
@@ -283,34 +292,45 @@ public class ClientMain {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
             os.writeObject(msg);
-            MessageResult res = (MessageResult) is.readObject();
+            try {
+                MessageResult res = (MessageResult) is.readObject();
 
-            if (res.Error()) {
-                Logger.logError("Server error: " + res.getErrorMessage());
-                System.out.println("Error: " + res.getErrorMessage());
-            } else {
-                switch (res.getId()) {
-                    case Protocol.CMD_EXECUTE:
-                        printExecuteResult((MessageExecuteResult) res);
-                        break;
-                    case Protocol.CMD_UPLOAD:
-                        printUploadResult((MessageUploadResult) res);
-                        break;
-                    case Protocol.CMD_DOWNLOAD:
-                        printDownloadResult((MessageDownloadResult) res);
-                        break;
-                    case Protocol.CMD_CHDIR:
-                        printChdirResult(s, (MessageChdirResult) res);
-                        break;
-                    case Protocol.CMD_GETDIR:
-                        printGetdirResult(s, (MessageGetdirResult) res);
-                        break;
-                    default:
-                        Logger.logWarning("Unknown result type: " + res.getId());
-                        break;
+                if (res.Error()) {
+                    Logger.logError("Server error: " + res.getErrorMessage());
+                    System.out.println("Error: " + res.getErrorMessage());
+                } else {
+                    switch (res.getId()) {
+                        case Protocol.CMD_EXECUTE:
+                            printExecuteResult((MessageExecuteResult) res);
+                            break;
+                        case Protocol.CMD_UPLOAD:
+                            printUploadResult((MessageUploadResult) res);
+                            break;
+                        case Protocol.CMD_DOWNLOAD:
+                            printDownloadResult((MessageDownloadResult) res);
+                            break;
+                        case Protocol.CMD_CHDIR:
+                            printChdirResult(s, (MessageChdirResult) res);
+                            break;
+                        case Protocol.CMD_GETDIR:
+                            printGetdirResult(s, (MessageGetdirResult) res);
+                            break;
+                        default:
+                            Logger.logWarning("Unknown result type: " + res.getId());
+                            break;
+                    }
                 }
+                return true;
+            } catch (IOException e) {
+                if (e.getMessage().contains("Connection reset") ||
+                        e.getMessage().contains("Обрыв канала") ||
+                        e.getMessage().contains("EOF")) {
+                    Logger.logInfo("Disconnected from server");
+                    s.connected = false;
+                    return false;
+                }
+                throw e;
             }
-            return true;
         }
         return false;
     }
