@@ -14,7 +14,7 @@ import java.util.TreeMap;
  * <p>Main class of server application for remote shell
  * <p>Realized in console
  * @author cin-tie
- * @version 1.0
+ * @version 1.1
  */
 public class ServerMain {
 
@@ -41,11 +41,11 @@ public class ServerMain {
                 Socket socket = accept(serv);
                 if (socket != null) {
                     if (ServerMain.getNumUsers() < ServerMain.MAX_USERS) {
-                        Logger.logServer(socket.getInetAddress().getHostName() + " connected");
+                        logConnection(socket.getInetAddress().getHostName() + " connected");
                         ServerThread server = new ServerThread(socket);
                         server.start();
                     } else {
-                        Logger.logWarning(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
+                        logConnection(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
                         socket.close();
                     }
                 }
@@ -125,7 +125,8 @@ public class ServerMain {
             ServerThread old = ServerMain.users.get(username);
             if(old == null) {
                 ServerMain.users.put(username, user);
-                Logger.logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
+
+                logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
             }
             return old;
         }
@@ -136,7 +137,7 @@ public class ServerMain {
             ServerThread res = ServerMain.users.put(username, user);
             if (user == null) {
                 ServerMain.users.remove(username);
-                Logger.logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
+                logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
             }
             return res;
         }
@@ -152,5 +153,23 @@ public class ServerMain {
         synchronized (ServerMain.syncUsers) {
             return ServerMain.users.keySet().size();
         }
+    }
+
+    private static void logInfo(String message) {
+        System.out.println();
+        Logger.logInfo(message);
+        restorePrompt();
+    }
+
+    private static void logConnection(String message) {
+        System.out.println();
+        Logger.logServer(message);
+        restorePrompt();
+    }
+
+
+    private static void restorePrompt() {
+        System.out.print("server> ");
+        System.out.flush();
     }
 }

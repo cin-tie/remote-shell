@@ -9,15 +9,17 @@ import java.util.Scanner;
 /**
  * <p>Thread for handling server stop commands
  * @author cin-tie
- * @version 1.0
+ * @version 1.1
  */
 public class ServerStopThread extends CommandThread {
 
     static final String cmd  = "q";
     static final String cmdL = "quit";
     static final String cmdStop  = "stop";
-    static final String cmdStatus = "status";
-    static final String cmdHelp = "help";
+    static final String cmdStatusL = "status";
+    static final String cmdStatus = "s";
+    static final String cmdHelpL = "help";
+    static final String cmdHelp = "h";
 
     Scanner fin;
 
@@ -40,12 +42,12 @@ public class ServerStopThread extends CommandThread {
             }
         });
 
-        putHandler(cmdStatus, cmdStatus, new CmdHandler() {
+        putHandler(cmdStatus, cmdStatusL, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdStatus(); }
         });
 
-        putHandler(cmdHelp, cmdHelp, new CmdHandler() {
+        putHandler(cmdHelp, cmdHelpL, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdHelp(); }
         });
