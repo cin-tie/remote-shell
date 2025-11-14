@@ -14,7 +14,7 @@ import java.util.TreeMap;
  * <p>Main class of server application for remote shell
  * <p>Realized in console
  * @author cin-tie
- * @version 1.0
+ * @version 1.2
  */
 public class ServerMain {
 
@@ -41,11 +41,11 @@ public class ServerMain {
                 Socket socket = accept(serv);
                 if (socket != null) {
                     if (ServerMain.getNumUsers() < ServerMain.MAX_USERS) {
-                        Logger.logServer(socket.getInetAddress().getHostName() + " connected");
+                        logConnection(socket.getInetAddress().getHostName() + " connected");
                         ServerThread server = new ServerThread(socket);
                         server.start();
                     } else {
-                        Logger.logWarning(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
+                        logConnection(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
                         socket.close();
                     }
                 }
@@ -55,9 +55,12 @@ public class ServerMain {
             }
 
         } catch (IOException e){
-            Logger.logError("Server error: " + e.getMessage());
+            if (!getStopFlag()) {
+                Logger.logError("Server error: " + e.getMessage());
+            }
         } finally {
             stopAllUsers();
+            waitForUsersToDisconnect();
             Logger.logServer("Server stopped");
         }
 
@@ -86,8 +89,30 @@ public class ServerMain {
         for (String user : users) {
             ServerThread ut = getUser(user);
             if (ut != null) {
-                ut.disconnect();
+                ut.gracefulDisconnect();
             }
+        }
+
+    }
+
+    private static void waitForUsersToDisconnect() {
+        int maxWaitTime = 10000; // 10 секунд максимум
+        int waitInterval = 100; // Проверяем каждые 100мс
+        int totalWaited = 0;
+
+        while (getNumUsers() > 0 && totalWaited < maxWaitTime) {
+            try {
+                Thread.sleep(waitInterval);
+                totalWaited += waitInterval;
+                Logger.logDebug("Waiting for users to disconnect... " + getNumUsers() + " remaining");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        if (getNumUsers() > 0) {
+            Logger.logWarning("Forcefully disconnecting " + getNumUsers() + " remaining users");
         }
     }
 
@@ -125,7 +150,8 @@ public class ServerMain {
             ServerThread old = ServerMain.users.get(username);
             if(old == null) {
                 ServerMain.users.put(username, user);
-                Logger.logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
+
+                logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
             }
             return old;
         }
@@ -136,7 +162,7 @@ public class ServerMain {
             ServerThread res = ServerMain.users.put(username, user);
             if (user == null) {
                 ServerMain.users.remove(username);
-                Logger.logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
+                logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
             }
             return res;
         }
@@ -152,5 +178,23 @@ public class ServerMain {
         synchronized (ServerMain.syncUsers) {
             return ServerMain.users.keySet().size();
         }
+    }
+
+    private static void logInfo(String message) {
+        System.out.println();
+        Logger.logInfo(message);
+        restorePrompt();
+    }
+
+    private static void logConnection(String message) {
+        System.out.println();
+        Logger.logServer(message);
+        restorePrompt();
+    }
+
+
+    private static void restorePrompt() {
+        System.out.print("server> ");
+        System.out.flush();
     }
 }

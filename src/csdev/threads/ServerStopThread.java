@@ -3,20 +3,23 @@ package csdev.threads;
 import csdev.server.ServerMain;
 import csdev.utils.Logger;
 
+import java.io.IOException;
 import java.util.Scanner;
 
 /**
  * <p>Thread for handling server stop commands
  * @author cin-tie
- * @version 1.0
+ * @version 1.1
  */
 public class ServerStopThread extends CommandThread {
 
     static final String cmd  = "q";
     static final String cmdL = "quit";
     static final String cmdStop  = "stop";
-    static final String cmdStatus = "status";
-    static final String cmdHelp = "help";
+    static final String cmdStatusL = "status";
+    static final String cmdStatus = "s";
+    static final String cmdHelpL = "help";
+    static final String cmdHelp = "h";
 
     Scanner fin;
 
@@ -39,12 +42,12 @@ public class ServerStopThread extends CommandThread {
             }
         });
 
-        putHandler(cmdStatus, cmdStatus, new CmdHandler() {
+        putHandler(cmdStatus, cmdStatusL, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdStatus(); }
         });
 
-        putHandler(cmdHelp, cmdHelp, new CmdHandler() {
+        putHandler(cmdHelp, cmdHelpL, new CmdHandler() {
             @Override
             public boolean onCommand(int[] errorCode) { return onCmdHelp(); }
         });
@@ -52,7 +55,6 @@ public class ServerStopThread extends CommandThread {
 
     public boolean onCmdQuit() {
         Logger.logInfo("Stop command recieved - shutting down server...");
-        ServerMain.setStopFlag(true);
         ServerMain.stopServer();
         return true;
     }
@@ -78,5 +80,47 @@ public class ServerStopThread extends CommandThread {
         System.out.println("help           - Show this help message");
         System.out.println("===============================\n");
         return false;
+    }
+
+    @Override
+    public void run() {
+        System.out.println("Server control thread started. Type 'help' for available commands.");
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        while (!ServerMain.getStopFlag()) {
+            try {
+                System.out.print("server> ");
+                System.out.flush();
+                if(fin.hasNextLine()) {
+                    String line = fin.nextLine().trim();
+                    if(!line.isEmpty()) {
+                        boolean result = command(line);
+                        if(result && (line.equals("q") || line.equals("quit") || line.equals("stop"))) {
+                            break;
+                        }
+                    }
+                }
+                else{
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                Logger.logError("Error in server control thread: " + e.getMessage());
+                if(!ServerMain.getStopFlag()) {
+                    System.out.print("server> ");
+                    System.out.flush();
+                }
+            }
+        }
+
+        Logger.logInfo("Server control thread stopped.");
     }
 }

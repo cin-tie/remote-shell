@@ -70,8 +70,11 @@ public class ClientMain {
             if(openSession(s, is, os, in)){
                 try {
                     displayWelcome(s);
-                    while (true) {
+                    while (s.connected) {
                         Message msg = getCommand(s, in);
+                        if(msg == null) {
+                            break;
+                        }
                         if (!processCommand(s, msg, is, os)) {
                             break;
                         }
@@ -81,7 +84,13 @@ public class ClientMain {
                 }
             }
         } catch (Exception e){
-            Logger.logError("Session Error: " + e.getMessage());
+            if (!e.getMessage().contains("Server is shutting down") &&
+                    !e.getMessage().contains("Connection reset") &&
+                    !e.getMessage().contains("Обрыв канала")) {
+                Logger.logError("Session Error: " + e.getMessage());
+            } else {
+                Logger.logInfo("Disconnected from server: " + e.getMessage());
+            }
         }
     }
 
@@ -123,8 +132,13 @@ public class ClientMain {
         System.out.println("User: " + s.usernameFull + " (" + s.username + ")");
         System.out.println("Server: " + s.serverOS);
         System.out.println("Current directory: " + s.currentDirectory);
+        displayHelp();
+    }
+
+    static void displayHelp(){
         System.out.println("-".repeat(60));
         System.out.println("Available commands:");
+        System.out.println("  (h)elp     - Watch all available commands");
         System.out.println("  (e)xecute  - Execute shell command");
         System.out.println("  (u)pload   - Upload file to server");
         System.out.println("  (d)ownload - Download file from server");
@@ -149,6 +163,9 @@ public class ClientMain {
             switch (cmd) {
                 case -1:
                     return null;
+                case -2:
+                    displayHelp();
+                    break;
                 case Protocol.CMD_EXECUTE:
                     return inputExecute(in);
                 case Protocol.CMD_UPLOAD:
@@ -265,6 +282,8 @@ public class ClientMain {
         commands.put("cd", Protocol.CMD_CHDIR);
         commands.put("p", Protocol.CMD_GETDIR);
         commands.put("pwd", Protocol.CMD_GETDIR);
+        commands.put("h", (byte) -2);
+        commands.put("help", (byte) -2);
     }
 
     static byte translateCmd(String str) {
@@ -273,8 +292,8 @@ public class ClientMain {
         return (r == null ? 0 : r.byteValue());
     }
 
-    static void printPrompt(Session ses) {
-        System.out.print(ses.username + "@" + ses.currentDirectory + "> ");
+    static void printPrompt(Session s) {
+        System.out.print(s.username + "@" + s.currentDirectory + "> ");
         System.out.flush();
     }
 
@@ -283,34 +302,45 @@ public class ClientMain {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
             os.writeObject(msg);
-            MessageResult res = (MessageResult) is.readObject();
+            try {
+                MessageResult res = (MessageResult) is.readObject();
 
-            if (res.Error()) {
-                Logger.logError("Server error: " + res.getErrorMessage());
-                System.out.println("Error: " + res.getErrorMessage());
-            } else {
-                switch (res.getId()) {
-                    case Protocol.CMD_EXECUTE:
-                        printExecuteResult((MessageExecuteResult) res);
-                        break;
-                    case Protocol.CMD_UPLOAD:
-                        printUploadResult((MessageUploadResult) res);
-                        break;
-                    case Protocol.CMD_DOWNLOAD:
-                        printDownloadResult((MessageDownloadResult) res);
-                        break;
-                    case Protocol.CMD_CHDIR:
-                        printChdirResult(s, (MessageChdirResult) res);
-                        break;
-                    case Protocol.CMD_GETDIR:
-                        printGetdirResult(s, (MessageGetdirResult) res);
-                        break;
-                    default:
-                        Logger.logWarning("Unknown result type: " + res.getId());
-                        break;
+                if (res.Error()) {
+                    Logger.logError("Server error: " + res.getErrorMessage());
+                    System.out.println("Error: " + res.getErrorMessage());
+                } else {
+                    switch (res.getId()) {
+                        case Protocol.CMD_EXECUTE:
+                            printExecuteResult((MessageExecuteResult) res);
+                            break;
+                        case Protocol.CMD_UPLOAD:
+                            printUploadResult((MessageUploadResult) res);
+                            break;
+                        case Protocol.CMD_DOWNLOAD:
+                            printDownloadResult((MessageDownloadResult) res);
+                            break;
+                        case Protocol.CMD_CHDIR:
+                            printChdirResult(s, (MessageChdirResult) res);
+                            break;
+                        case Protocol.CMD_GETDIR:
+                            printGetdirResult(s, (MessageGetdirResult) res);
+                            break;
+                        default:
+                            Logger.logWarning("Unknown result type: " + res.getId());
+                            break;
+                    }
                 }
+                return true;
+            } catch (IOException e) {
+                if (e.getMessage().contains("Connection reset") ||
+                        e.getMessage().contains("Обрыв канала") ||
+                        e.getMessage().contains("EOF")) {
+                    Logger.logInfo("Disconnected from server");
+                    s.connected = false;
+                    return false;
+                }
+                throw e;
             }
-            return true;
         }
         return false;
     }
