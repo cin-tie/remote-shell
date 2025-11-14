@@ -132,8 +132,13 @@ public class ClientMain {
         System.out.println("User: " + s.usernameFull + " (" + s.username + ")");
         System.out.println("Server: " + s.serverOS);
         System.out.println("Current directory: " + s.currentDirectory);
+        displayHelp();
+    }
+
+    static void displayHelp(){
         System.out.println("-".repeat(60));
         System.out.println("Available commands:");
+        System.out.println("  (h)elp     - Watch all available commands");
         System.out.println("  (e)xecute  - Execute shell command");
         System.out.println("  (u)pload   - Upload file to server");
         System.out.println("  (d)ownload - Download file from server");
@@ -158,6 +163,9 @@ public class ClientMain {
             switch (cmd) {
                 case -1:
                     return null;
+                case -2:
+                    displayHelp();
+                    break;
                 case Protocol.CMD_EXECUTE:
                     return inputExecute(in);
                 case Protocol.CMD_UPLOAD:
@@ -274,6 +282,8 @@ public class ClientMain {
         commands.put("cd", Protocol.CMD_CHDIR);
         commands.put("p", Protocol.CMD_GETDIR);
         commands.put("pwd", Protocol.CMD_GETDIR);
+        commands.put("h", (byte) -2);
+        commands.put("help", (byte) -2);
     }
 
     static byte translateCmd(String str) {
@@ -282,8 +292,8 @@ public class ClientMain {
         return (r == null ? 0 : r.byteValue());
     }
 
-    static void printPrompt(Session ses) {
-        System.out.print(ses.username + "@" + ses.currentDirectory + "> ");
+    static void printPrompt(Session s) {
+        System.out.print(s.username + "@" + s.currentDirectory + "> ");
         System.out.flush();
     }
 
