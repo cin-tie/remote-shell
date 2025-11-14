@@ -75,7 +75,7 @@ public class ClientMain {
                         if(msg == null) {
                             break;
                         }
-                        if (!processCommand(s, msg, is, os)) {
+                        if (!processCommand(s, msg, is, os, in)) {
                             break;
                         }
                     }
@@ -253,7 +253,29 @@ public class ClientMain {
             return null;
         }
 
-        return new MessageDownload(remotePath);
+        System.out.print("Download offset [0]: ");
+        String offsetStr = in.nextLine().trim();
+        long offset = 0;
+        try {
+            if (!offsetStr.isEmpty()) {
+                offset = Long.parseLong(offsetStr);
+            }
+        } catch (NumberFormatException e) {
+            Logger.logWarning("Invalid offset, using default: 0");
+        }
+
+        System.out.print("Download length [full file]: ");
+        String lengthStr = in.nextLine().trim();
+        long length = -1;
+        try {
+            if (!lengthStr.isEmpty()) {
+                length = Long.parseLong(lengthStr);
+            }
+        } catch (NumberFormatException e) {
+            Logger.logWarning("Invalid length, downloading full file");
+        }
+
+        return new MessageDownload(remotePath, offset, length);
     }
 
     static MessageChdir inputChdir(Scanner in) {
@@ -297,7 +319,7 @@ public class ClientMain {
         System.out.flush();
     }
 
-    static boolean processCommand(Session s, Message msg, ObjectInputStream is, ObjectOutputStream os)
+    static boolean processCommand(Session s, Message msg, ObjectInputStream is, ObjectOutputStream os, Scanner in)
             throws IOException, ClassNotFoundException {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
@@ -317,7 +339,7 @@ public class ClientMain {
                             printUploadResult((MessageUploadResult) res);
                             break;
                         case Protocol.CMD_DOWNLOAD:
-                            printDownloadResult((MessageDownloadResult) res);
+                            printDownloadResult((MessageDownloadResult) res, in);
                             break;
                         case Protocol.CMD_CHDIR:
                             printChdirResult(s, (MessageChdirResult) res);
@@ -377,7 +399,7 @@ public class ClientMain {
         System.out.println("=".repeat(60));
     }
 
-    static void printDownloadResult(MessageDownloadResult msg){
+    static void printDownloadResult(MessageDownloadResult msg, Scanner in){
         System.out.println("\n" + "=".repeat(60));
         System.out.println("FILE DOWNLOAD RESULT");
         System.out.println("=".repeat(60));
@@ -387,15 +409,73 @@ public class ClientMain {
         System.out.println("Partial: " + msg.isPartial);
 
         if (msg.fileData != null && msg.dataSize > 0) {
-            System.out.println("\nFile content preview (first 500 bytes):");
-            String preview = new String(msg.fileData, 0, (int)Math.min(500, msg.dataSize));
-            System.out.println(preview);
-            if (msg.dataSize > 500) {
-                System.out.println("... [truncated]");
+            System.out.print("\nSave file to local disk? (y/n) [y]: ");
+            String saveChoice = in.nextLine().trim().toLowerCase();
+
+            if (saveChoice.isEmpty() || saveChoice.equals("y") || saveChoice.equals("yes")) {
+                System.out.print("Enter local file path (absolute path): ");
+                String localPath = in.nextLine().trim();
+
+                if (localPath.isEmpty()) {
+                    localPath = System.getProperty("user.dir") + File.separator + msg.fileName;
+                } else {
+                    File path = new File(localPath);
+                    if (path.isDirectory() || localPath.endsWith(File.separator)) {
+                        localPath = localPath + File.separator + msg.fileName;
+                    }
+                }
+
+                try {
+                    saveFileToDisk(msg.fileData, localPath, msg.dataSize);
+                } catch (IOException e) {
+                    Logger.logError("Failed to save file: " + e.getMessage());
+                    System.out.println("Error saving file: " + e.getMessage());
+                }
             }
+
+            if (msg.dataSize <= 5000) {
+                System.out.println("\nFile content preview (first 500 bytes):");
+                String preview = new String(msg.fileData, 0, (int)Math.min(500, msg.dataSize));
+                System.out.println(preview);
+                if (msg.dataSize > 500) {
+                    System.out.println("... [truncated]");
+                }
+            } else {
+                System.out.println("\nFile is too large for preview (" + msg.dataSize + " bytes)");
+            }
+        } else {
+            System.out.println("\nNo file data received or file is empty");
         }
 
         System.out.println("=".repeat(60));
+    }
+
+    static void saveFileToDisk(byte[] fileData, String filePath, long dataSize) throws IOException {
+        File file = new File(filePath);
+
+        File parentDir = file.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+
+        if (file.exists()) {
+            System.out.print("File already exists. Overwrite? (y/n) [n]: ");
+            Scanner in = new Scanner(System.in);
+            String overwrite = in.nextLine().trim().toLowerCase();
+            if (!overwrite.equals("y") && !overwrite.equals("yes")) {
+                System.out.println("File save cancelled.");
+                return;
+            }
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(file);
+             BufferedOutputStream bos = new BufferedOutputStream(fos)) {
+            bos.write(fileData, 0, (int) dataSize);
+            bos.flush();
+        }
+
+        System.out.println("File saved successfully: " + file.getAbsolutePath());
+        System.out.println("File size: " + file.length() + " bytes");
     }
 
     static void printChdirResult(Session s, MessageChdirResult msg){

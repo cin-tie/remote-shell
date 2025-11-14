@@ -306,7 +306,7 @@ public class ServerThread extends Thread {
             String oldDirectory = currentDirectory;
             currentDirectory = newDir.getAbsolutePath();
 
-            MessageChdirResult result = new MessageChdirResult(oldDirectory, currentDirectory);
+            MessageChdirResult result = new MessageChdirResult(currentDirectory, oldDirectory);
             out.writeObject(result);
             logInfo("Directory changed for " + username + " successfully: " + oldDirectory + " -> " + currentDirectory);
         } catch(Exception e){
@@ -321,7 +321,7 @@ public class ServerThread extends Thread {
         logDebug("Current directory request from " + username);
 
         try {
-            MessageGetdirResult result = new MessageGetdirResult(currentDirectory);
+            MessageGetdirResult result = new MessageGetdirResult(currentDirectory, 0);
             out.writeObject(result);
         } catch (Exception e) {
             logError("Get directory failed for " + username + ": " + e.getMessage());
