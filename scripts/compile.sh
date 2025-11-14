@@ -1,14 +1,9 @@
 #!/bin/bash
 
-# Remote Shell - Compilation Script
-# Location: scripts/compile.sh
-
 echo "=== Compiling Remote Shell Application ==="
 
-# Создаем директорию для скомпилированных классов
 mkdir -p build
 
-# Компилируем все Java файлы
 echo "Compiling Java sources..."
 javac -d build -sourcepath src $(find src -name "*.java")
 
