@@ -12,7 +12,7 @@ A Java-based remote shell system for Unix/Linux/macOS that allows clients to con
 
 ## Overview
 
-The Remote Shell system consists of to main components:
+The Remote Shell system consists of two main components:
 
 | Components | Description                                                                                   |
 |------------|-----------------------------------------------------------------------------------------------|
@@ -27,7 +27,7 @@ The Remote Shell system consists of to main components:
 | Remote Execution       | Execute shell commands on remote server                    |
 | File transfer          | Upload/Download files between client and server            |
 | Directory file transfer| Change and query working directories                       |
-| Multi-threaded         | Handles multiple clients simultaneosly                     |
+| Multi-threaded         | Handles multiple clients simultaneously                     |
 
 ## Architecture
 ```
@@ -98,7 +98,7 @@ java -cp build csdev.client.ClientMain <username> "<fullname>" <host> [password]
 | `-h/--host` | NO       | Server hostname(default: localhost)          |
 | `-p/--pass` | NO       | Server password if authentication is enabled |
 
-*If `--user` is not provided, client auto-generate "guest_from_ip" username 
+*If `--user` is not provided, client auto-generate "guest_from_ip" username
 
 ## Protocol
 ### Connection Details
