@@ -12,7 +12,7 @@ import java.util.TreeMap;
 /**
  * <p>Main class of client application
  * <p>Remote shell client for MacOS/Linux/Unix servers
- * <br>Use arguments: userNic userFullName [host]
+ * <br>Use arguments: userNic userFullName [password] [host]
  * @author cin-tie
  * @version 1.0
  */
@@ -21,18 +21,25 @@ public class ClientMain {
     public static void main(String[] args) {
         Logger.logClient("Starting Remote Shell Client...");
 
-        if(args.length < 2 || args.length > 3) {
-            Logger.logError("Invalid number of arguments\nUse: nic name [host]");
+        if(args.length < 3 || args.length > 4) {
+            Logger.logError("Invalid number of arguments\nUse: nic name host [password]");
+            Logger.logError("Examples:");
+            Logger.logError("       john \"John Doe\" localhost");
+            Logger.logError("       john \"John Doe\" localhost mypassword");
             waitKeyToStop();
             return;
         }
 
-        String host = args.length == 2 ? "localhost" : args[2];
+        String password = args.length == 4 ? args[3] : "";
+        String host = args[2];
         Logger.logInfo("Connecting to " + host + " as " + args[0] + " (" + args[1] + ")");
+        if (password.isEmpty()) {
+            Logger.logWarning("No password provided - connection may fail if server requires authentication");
+        }
 
         try (Socket sock = new Socket(host, Protocol.PORT)) {
             Logger.logClient("Client initialized");
-            session(sock, args[0], args[1]);
+            session(sock, args[0], args[1], password);
         } catch (Exception e) {
             Logger.logError("Connection failed: " + e.getMessage());
         } finally {
@@ -52,21 +59,23 @@ public class ClientMain {
         boolean connected = false;
         String username = null;
         String usernameFull = null;
+        String password = "";
         String currentDirectory = "";
         String serverOS = "";
 
-        Session(String username, String usernameFull){
+        Session(String username, String usernameFull, String password){
             this.username = username;
             this.usernameFull = usernameFull;
+            this.password = password;
         }
     }
 
-    static void session(Socket socket, String username, String usernameFull){
+    static void session(Socket socket, String username, String usernameFull, String password){
         try(Scanner in = new Scanner(System.in);
             ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
             ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream())){
 
-            Session s = new Session(username, usernameFull);
+            Session s = new Session(username, usernameFull, password);
             if(openSession(s, is, os, in)){
                 try {
                     displayWelcome(s);
@@ -96,7 +105,7 @@ public class ClientMain {
 
     static boolean openSession(Session s, ObjectInputStream is, ObjectOutputStream os, Scanner in) throws IOException, ClassNotFoundException {
         Logger.logDebug("Sending connection request...");
-        os.writeObject(new MessageConnect(s.username, s.usernameFull));
+        os.writeObject(new MessageConnect(s.username, s.usernameFull, s.password));
         MessageConnectResult msg = (MessageConnectResult) is.readObject();
 
         if(!msg.Error()){

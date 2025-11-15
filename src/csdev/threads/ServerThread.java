@@ -143,10 +143,20 @@ public class ServerThread extends Thread {
 
     boolean connect(MessageConnect msg) throws IOException {
         logInfo("Connecting attempt from: " + msg.username + "(" + msg.usernameFull + ")");
+
+        if(ServerMain.isPasswordRequired()){
+            if(msg.password == null || !msg.password.equals(ServerMain.getServerPassword())){
+                MessageConnectResult result = new MessageConnectResult("Invalid password");
+                out.writeObject(result);
+                logWarning("Connection rejected - invalid password for user: " + msg.username);
+                return false;
+            }
+        }
+
         ServerThread old = register(msg.username, msg.usernameFull);
         if(old == null){
             String serverOS = System.getProperty("os.name") + " " + System.getProperty("os.version");
-            String serverVersion = "RemoteSheell server 1.0";
+            String serverVersion = "Remote Shell server 1.0";
             MessageConnectResult result = new MessageConnectResult(serverOS, currentDirectory, serverVersion);
             out.writeObject(result);
             logInfo("User connected successfully: " + msg.username);

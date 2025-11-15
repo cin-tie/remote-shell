@@ -21,13 +21,13 @@ The Remote Shell system consists of to main components:
 
 ## Features
 
-| Feature                | Description                                                    |
-|------------------------|----------------------------------------------------------------|
-| Authentication         | User-based connection system                                   |
-| Remote Execution       | Execute shell commands on remote server                        |
-| File transfer          | Upload/Download files between client and server                |
-| Directory file transfer| Change and query working directories                           |
-| Multi-threaded         | Handles multiple clients simultaneosly                         |
+| Feature                | Description                                                |
+|------------------------|------------------------------------------------------------|
+| Authentication         | User-based connection system with optional server password |
+| Remote Execution       | Execute shell commands on remote server                    |
+| File transfer          | Upload/Download files between client and server            |
+| Directory file transfer| Change and query working directories                       |
+| Multi-threaded         | Handles multiple clients simultaneosly                     |
 
 ## Architecture
 ```
@@ -57,29 +57,48 @@ javac src/csdev/**/*.java src/csdev/*.java
 ## Usage
 ### Starting the Server
 ```bash
-# Run script
+# Without password
 ./scripts/server.sh
 
+# With password
+./scripts/server.sh -p password
+./scripts/server.sh -p "password"
+
 # Or run manually
-java src.csdev.server.ServerMain
+java -cp build csdev.server.ServerMain
+java -cp build csdev.server.ServerMain "password"
 ```
 
 ### Starting the Client
 ```bash
-# Run script
+# Auto-generated guest user (guest_from_ip)
 ./scripts/client.sh
 
+# Localhost without password
+./scripts/client.sh -u john "John Doe"
+
+# Specific host without password
+./scripts/client.sh -u john "John Doe" -h 127.0.0.1
+
+# Localhost with password
+./scripts/client.sh -u john "John Doe" -p "password"
+
+# All arguments specified
+./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password
+
 # Or run manually
-java src.csdev.client.ClientMain
+java -cp build csdev.client.ClientMain <username> "<fullname>" <host> [password]
 ```
 
 #### Client argument
 
-| Parameter  | Required | Description                         |
-|------------|----------|-------------------------------------|
-| `username` | YES      | Short username for connection       |
-| `fullname` | YES      | Full user name for identification   |
-| `host`     | NO       | Server hostname(default: localhost) |
+| Parameter   | Required | Description                                  |
+|-------------|----------|----------------------------------------------|
+| `-u/--user` | YES*     | Short username and full name for connection  |
+| `-h/--host` | NO       | Server hostname(default: localhost)          |
+| `-p/--pass` | NO       | Server password if authentication is enabled |
+
+*If `--user` is not provided, client auto-generate "guest_from_ip" username 
 
 ## Protocol
 ### Connection Details
@@ -91,7 +110,7 @@ java src.csdev.client.ClientMain
 
 ### Message Flow
 1. **Connect** → Client establishes connection with credentials
-2. **Authentication** → Server validates user(basic implementation)
+2. **Authentication** → Server validates user(basic implementation with password)
 3. **Command Session** → Client sends commands, server returns results
 4. **Disconnect** → Graceful termination or timeout
 
@@ -105,9 +124,9 @@ java src.csdev.client.ClientMain
 | `SERVER` | Server-specific events         |
 | `CLIENT` | Client-specific events         |
 Enable debug by setting `Logger.debugEnabled = true` for detailed troubleshooting
-
 ---
 
 **Version**: 1.2
 **Author**: cin-tie
 **Licence**: Educational Use
+
