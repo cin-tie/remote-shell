@@ -13,20 +13,35 @@ import java.util.TreeMap;
 /**
  * <p>Main class of server application for remote shell
  * <p>Realized in console
+ * <br>Use arguments: password
  * @author cin-tie
- * @version 1.2
+ * @version 1.3
  */
 public class ServerMain {
 
     public static final int MAX_USERS = 50;
     private static ServerSocket serverSocket;
+    private static String serverPassword;
+    private static boolean passwordRequired = false;
     private static Object syncFlags = new Object();
     private static boolean stopFlag = false;
     private static Object syncUsers = new Object();
     private static TreeMap<String, ServerThread> users = new TreeMap<String, ServerThread>();
 
     public static void main(String[] args) {
-        Logger.logServer("Starting remote-shell server...");
+        Logger.logServer("Starting Remote Shell server...");
+
+        if(args.length > 1) {
+            Logger.logError("Invalid number of arguments\nUse: [password]");
+            waitKeyToStop();
+            return;
+        }
+
+        serverPassword = args.length == 1 ? args[0] : "";
+        System.out.println("Server Password: " + serverPassword);
+        passwordRequired = !serverPassword.isEmpty();
+
+        Logger.logServer("Password authentication: " + (passwordRequired ? "ENABLED" : "DISABLED"));
 
         try(ServerSocket serv = new ServerSocket(Protocol.PORT)) {
 
@@ -71,6 +86,22 @@ public class ServerMain {
         }
     }
 
+    static void waitKeyToStop(){
+        Logger.logInfo("Press enter to stop...");
+        try {
+            System.in.read();
+        } catch (Exception e) {
+        }
+    }
+
+    public static boolean isPasswordRequired(){
+        return passwordRequired;
+    }
+
+    public static String getServerPassword(){
+        return serverPassword;
+    }
+
     public static Socket accept(ServerSocket serverSocket) {
         assert(serverSocket != null);
         try {
@@ -96,8 +127,8 @@ public class ServerMain {
     }
 
     private static void waitForUsersToDisconnect() {
-        int maxWaitTime = 10000; // 10 секунд максимум
-        int waitInterval = 100; // Проверяем каждые 100мс
+        int maxWaitTime = 10000;
+        int waitInterval = 100;
         int totalWaited = 0;
 
         while (getNumUsers() > 0 && totalWaited < maxWaitTime) {
