@@ -14,12 +14,12 @@ import java.util.TreeMap;
  * <p>Remote shell client for MacOS/Linux/Unix servers
  * <br>Use arguments: userNic userFullName [password] [host]
  * @author cin-tie
- * @version 1.0
+ * @version 1.1
  */
 public class TcpClientMain {
 
     public static void main(String[] args) {
-        Logger.logClient("Starting Remote Shell Client...");
+        Logger.logClient("Starting Remote Shell TCP Client...");
 
         if(args.length < 3 || args.length > 4) {
             Logger.logError("Invalid number of arguments\nUse: nic name host [password]");
@@ -38,12 +38,12 @@ public class TcpClientMain {
         }
 
         try (Socket sock = new Socket(host, Protocol.PORT)) {
-            Logger.logClient("Client initialized");
+            Logger.logClient("TCP Client initialized");
             session(sock, args[0], args[1], password);
         } catch (Exception e) {
-            Logger.logError("Connection failed: " + e.getMessage());
+            Logger.logError("TCP Connection failed: " + e.getMessage());
         } finally {
-            Logger.logClient("Client shutdown");
+            Logger.logClient("TCP Client shutdown");
         }
     }
 
@@ -55,7 +55,7 @@ public class TcpClientMain {
         }
     }
 
-    static class Session {
+    static class TcpSession {
         boolean connected = false;
         String username = null;
         String usernameFull = null;
@@ -63,7 +63,7 @@ public class TcpClientMain {
         String currentDirectory = "";
         String serverOS = "";
 
-        Session(String username, String usernameFull, String password){
+        TcpSession(String username, String usernameFull, String password){
             this.username = username;
             this.usernameFull = usernameFull;
             this.password = password;
@@ -75,7 +75,7 @@ public class TcpClientMain {
             ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
             ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream())){
 
-            Session s = new Session(username, usernameFull, password);
+            TcpSession s = new TcpSession(username, usernameFull, password);
             if(openSession(s, is, os, in)){
                 try {
                     displayWelcome(s);
@@ -96,14 +96,14 @@ public class TcpClientMain {
             if (!e.getMessage().contains("Server is shutting down") &&
                     !e.getMessage().contains("Connection reset") &&
                     !e.getMessage().contains("Обрыв канала")) {
-                Logger.logError("Session Error: " + e.getMessage());
+                Logger.logError("TCP Session Error: " + e.getMessage());
             } else {
                 Logger.logInfo("Disconnected from server: " + e.getMessage());
             }
         }
     }
 
-    static boolean openSession(Session s, ObjectInputStream is, ObjectOutputStream os, Scanner in) throws IOException, ClassNotFoundException {
+    static boolean openSession(TcpSession s, ObjectInputStream is, ObjectOutputStream os, Scanner in) throws IOException, ClassNotFoundException {
         Logger.logDebug("Sending connection request...");
         os.writeObject(new MessageConnect(s.username, s.usernameFull, s.password));
         MessageConnectResult msg = (MessageConnectResult) is.readObject();
@@ -126,7 +126,7 @@ public class TcpClientMain {
         return false;
     }
 
-    static void closeSession(Session s, ObjectOutputStream os) throws IOException {
+    static void closeSession(TcpSession s, ObjectOutputStream os) throws IOException {
         if(s.connected){
             s.connected = false;
             os.writeObject(new MessageDisconnect("Client shutdown"));
@@ -134,12 +134,13 @@ public class TcpClientMain {
         }
     }
 
-    static void displayWelcome(Session s){
+    static void displayWelcome(TcpSession s){
         System.out.println("\n" + "=".repeat(60));
         System.out.println("    REMOTE SHELL CLIENT");
         System.out.println("=".repeat(60));
         System.out.println("User: " + s.usernameFull + " (" + s.username + ")");
         System.out.println("Server: " + s.serverOS);
+        System.out.println("Protocol: TCP");
         System.out.println("Current directory: " + s.currentDirectory);
         displayHelp();
     }
@@ -157,7 +158,7 @@ public class TcpClientMain {
         System.out.println("=".repeat(60) + "\n");
     }
 
-    static Message getCommand(Session ses, Scanner in) {
+    static Message getCommand(TcpSession ses, Scanner in) {
         while (true) {
             printPrompt(ses);
             if (!in.hasNextLine())
@@ -323,12 +324,12 @@ public class TcpClientMain {
         return (r == null ? 0 : r.byteValue());
     }
 
-    static void printPrompt(Session s) {
+    static void printPrompt(TcpSession s) {
         System.out.print(s.username + "@" + s.currentDirectory + "> ");
         System.out.flush();
     }
 
-    static boolean processCommand(Session s, Message msg, ObjectInputStream is, ObjectOutputStream os, Scanner in)
+    static boolean processCommand(TcpSession s, Message msg, ObjectInputStream is, ObjectOutputStream os, Scanner in)
             throws IOException, ClassNotFoundException {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
@@ -487,12 +488,12 @@ public class TcpClientMain {
         System.out.println("File size: " + file.length() + " bytes");
     }
 
-    static void printChdirResult(Session s, MessageChdirResult msg){
+    static void printChdirResult(TcpSession s, MessageChdirResult msg){
         s.currentDirectory = msg.newDirectory;
         System.out.println("Directory changed: " + msg.oldDirectory + " -> " + msg.newDirectory);
     }
 
-    static void printGetdirResult(Session s, MessageGetdirResult msg){
+    static void printGetdirResult(TcpSession s, MessageGetdirResult msg){
         s.currentDirectory = msg.currentDirectory;
         System.out.println("Current directory: " + msg.currentDirectory);
     }
