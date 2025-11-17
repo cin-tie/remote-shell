@@ -3,7 +3,7 @@
 echo "=== Starting Remote Shell Client ==="
 
 if [ ! -d "build" ]; then
-    echo "❌ Build directory not found. Please run compile.sh first."
+    echo "Build directory not found. Please run compile.sh first."
     exit 1
 fi
 
@@ -11,6 +11,7 @@ USER_NICK=""
 USER_FULL=""
 HOST="localhost"
 PASS=""
+PROTOCOL="tcp"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -27,6 +28,16 @@ while [[ $# -gt 0 ]]; do
             PASS="$2"
             shift 2
             ;;
+        -pr|--protocol)
+            PROTOCOL="$2"
+            shift 2
+            ;;
+        --tcp)
+            PROTOCOL="tcp"
+            ;;
+        --udp)
+            PROTOCOL="udp"
+            ;;
         *)
             echo "Unknown option: $1"
             echo "Usage: $0 [-u <nick> \"<full name>\"] [-h host] [-p password]"
@@ -34,6 +45,9 @@ while [[ $# -gt 0 ]]; do
             echo "    -u <nick> \"<full name>\""
             echo "    -h hostname"
             echo "    -p password"
+            echo "    -pr tcp|udp (default: tcp)"
+            echo "    --tcp (use TCP protocol)"
+            echo "    --udp (use UDP protocol)"
             exit 1
             ;;
     esac
@@ -46,11 +60,15 @@ if [ -z "$USER_NICK" ] || [ -z "$USER_FULL" ]; then
     echo "No user specified - using auto-generated: $USER_NICK"
 fi
 
-echo "Connecting to $HOST as $USER_NICK ($USER_FULL)..."
+echo "Connecting to $HOST via $PROTOCOL as $USER_NICK ($USER_FULL)..."
 if [ -n "$PASS" ]; then
     echo "Using password authentication"
 else
     echo "No password provided - connection may fail if server requires authentication"
 fi
 
-java -cp build csdev.client.ClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
+if [ "$PROTOCOL" = "udp" ]; then
+    java -cp build csdev.client.UdpClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
+else
+    java -cp build csdev.client.TcpClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
+fi

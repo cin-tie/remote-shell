@@ -16,7 +16,7 @@ import java.util.TreeMap;
  * @author cin-tie
  * @version 1.0
  */
-public class ClientMain {
+public class TcpClientMain {
 
     public static void main(String[] args) {
         Logger.logClient("Starting Remote Shell Client...");
