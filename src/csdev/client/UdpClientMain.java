@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Main class of client application using UDP protocol
@@ -45,6 +46,24 @@ public class UdpClientMain {
             Logger.logError("UDP Connection failed: " + e.getMessage());
         } finally {
             Logger.logClient("UDP Client shutdown");
+        }
+    }
+
+    private static ConcurrentHashMap<String, FileAssemblySession> assemblySessions = new ConcurrentHashMap<>();
+
+    private static class FileAssemblySession {
+        public String fileId;
+        public int totalFragments;
+        public int receivedFragments;
+        public byte[][] fragments;
+        public long lastActivity;
+
+        public FileAssemblySession(String fileId, int totalFragments) {
+            this.fileId = fileId;
+            this.totalFragments = totalFragments;
+            this.receivedFragments = 0;
+            this.fragments = new byte[totalFragments][];
+            this.lastActivity = System.currentTimeMillis();
         }
     }
 
@@ -331,6 +350,10 @@ public class UdpClientMain {
     static boolean processCommand(UdpSession s, Message msg, DatagramSocket socket, Scanner in)
             throws IOException, ClassNotFoundException {
         if (msg != null) {
+            if(msg instanceof MessageFragment) {
+                handleFileFragment((MessageFragment) msg, socket, s.serverAddress, Protocol.PORT, in);
+                return true;
+            }
             Logger.logDebug("Sending command type: " + msg.getId());
             sendMessage(socket, s.serverAddress, Protocol.PORT, msg);
             try {
@@ -374,6 +397,63 @@ public class UdpClientMain {
             }
         }
         return false;
+    }
+
+    private static void handleFileFragment(MessageFragment msg, DatagramSocket socket, InetAddress address, int port, Scanner in) throws IOException {
+        FileAssemblySession session = assemblySessions.get(msg.fileId);
+
+        if(session == null && msg.fragmentType == MessageFragment.FRAGMENT_START) {
+            session = new FileAssemblySession(msg.fileId, msg.totalFragments);
+            assemblySessions.put(msg.fileId, session);
+            Logger.logInfo("Starting file assembly: " + msg.fileId + " [fragments=" + msg.totalFragments + "]");
+        }
+
+        if(session != null) {
+            session.fragments[msg.fragmentIndex] = msg.data;
+            session.receivedFragments++;
+            session.lastActivity = System.currentTimeMillis();
+
+            MessageFragmentResult ack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, true);
+            sendMessage(socket, address, port, ack);
+
+            if (session.receivedFragments == session.totalFragments) {
+                assembleAndSaveFile(session, in);
+                assemblySessions.remove(msg.fileId);
+            }
+        }
+    }
+
+    private static void assembleAndSaveFile(FileAssemblySession session, Scanner in) throws IOException {
+        int totalSize = 0;
+        for (byte[] fragment : session.fragments) {
+            if (fragment != null) {
+                totalSize += fragment.length;
+            }
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(totalSize);
+        for (byte[] fragment : session.fragments) {
+            if (fragment != null) {
+                baos.write(fragment);
+            }
+        }
+
+        byte[] fileData = baos.toByteArray();
+
+        System.out.println("\nFile download completed: " + session.totalFragments + " fragments assembled");
+        System.out.print("Save file to local disk? (y/n) [y]: ");
+        String saveChoice = in.nextLine().trim().toLowerCase();
+
+        if (saveChoice.isEmpty() || saveChoice.equals("y") || saveChoice.equals("yes")) {
+            System.out.print("Enter local file path: ");
+            String localPath = in.nextLine().trim();
+
+            if (localPath.isEmpty()) {
+                localPath = "downloaded_file_" + System.currentTimeMillis();
+            }
+
+            saveFileToDisk(fileData, localPath, totalSize);
+        }
     }
 
     static TreeMap<String, Byte> commands = new TreeMap<String, Byte>();

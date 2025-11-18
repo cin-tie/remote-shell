@@ -3,6 +3,7 @@ package csdev.threads;
 import csdev.Protocol;
 import csdev.messages.*;
 import csdev.server.ServerMain;
+import csdev.threads.session.FileTransferSession;
 import csdev.threads.session.UdpClientSession;
 import csdev.utils.Logger;
 
@@ -28,8 +29,32 @@ public class UdpServerThread extends Thread {
     private boolean running = true;
     private byte[] buffer = new byte[4096];
 
+    private static final int MAX_FRAGMENT_SIZE = 4000;
+    private static final int FRAGMENT_TIMEOUT = 5000;
+
     private ConcurrentHashMap<String, UdpClientSession> sessions = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, FileTransferSession> fileSessions = new ConcurrentHashMap<>();
     private ThreadPoolExecutor executor;
+
+    private static class FileTransferSession {
+        public String fileId;
+        public String clientKey;
+        public int totalFragments;
+        public int receivedFragments;
+        public byte[][] fragments;
+        public long lastActivity;
+        public boolean isDownload; // true = download, false = upload
+
+        public FileTransferSession(String fileId, String clientKey, int totalFragments, boolean isDownload) {
+            this.fileId = fileId;
+            this.clientKey = clientKey;
+            this.totalFragments = totalFragments;
+            this.receivedFragments = 0;
+            this.fragments = new byte[totalFragments][];
+            this.lastActivity = System.currentTimeMillis();
+            this.isDownload = isDownload;
+        }
+    }
 
     public  UdpServerThread() throws  IOException {
         this.socket = new DatagramSocket(Protocol.PORT);
@@ -278,35 +303,38 @@ public class UdpServerThread extends Thread {
             }
 
             long fileSize = file.length();
-            long offset = msg.offset;
-            long length = msg.length > 0 ? Math.min(fileSize - offset, msg.length) : fileSize - offset;
 
-            if (length > 60000) {
-                MessageDownloadResult result = new MessageDownloadResult("File too large for UDP download. Use TCP for large files.");
-                session.sendMessage(result);
+            if (fileSize <= MAX_FRAGMENT_SIZE) {
+                sendSmallFile(file, session, msg.filePath);
                 return;
             }
 
-            byte[] fileData = new byte[(int) length];
-            try (FileInputStream fis = new FileInputStream(file)) {
-                BufferedInputStream bis = new BufferedInputStream(fis);
-                bis.skip(offset);
-                int bytesRead = bis.read(fileData);
-                if (bytesRead != length) {
-                    throw new IOException("Failed to read complete file data");
-                }
-            }
+            sendLargeFileFragmented(file, session, address, port, msg.filePath);
 
-            boolean isPartial = (offset > 0 || length < fileSize);
-            MessageDownloadResult result = new MessageDownloadResult(file.getName(), fileSize, fileData, isPartial);
-            session.sendMessage(result);
-            Logger.logInfo("UDP File downloaded successfully: " + file.getAbsolutePath() + " [size=" + fileSize + " bytes, sent=" + length + " bytes, partial=" + isPartial + "]");
         } catch (Exception e) {
             Logger.logError("UDP File download failed for " + session.getUsername() + ": " + e.getMessage());
             MessageDownloadResult result = new MessageDownloadResult("File download failed: " + e.getMessage());
             session.sendMessage(result);
         }
     }
+
+    private void sendSmallFile(File file, UdpClientSession session, String filePath) throws IOException {
+        long fileSize = file.length();
+        byte[] fileData = new byte[(int) fileSize];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            BufferedInputStream bis = new BufferedInputStream(fis);
+            int bytesRead = bis.read(fileData);
+            if (bytesRead != fileSize) {
+                throw new IOException("Failed to read complete file data");
+            }
+        }
+
+        MessageDownloadResult result = new MessageDownloadResult(file.getName(), fileSize, fileData, false);
+        session.sendMessage(result);
+        Logger.logInfo("UDP Small file downloaded: " + filePath + " [size=" + fileSize + " bytes]");
+    }
+
+
 
     private void handleChdir(MessageChdir msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
