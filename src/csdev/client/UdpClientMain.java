@@ -13,7 +13,7 @@ import java.util.Scanner;
 import java.util.TreeMap;
 
 /**
- * <p>Main class of client application using Udp protocol
+ * <p>Main class of client application using UDP protocol
  * <p>Remote shell client for MacOS/Linux/Unix servers
  * <br>Use arguments: userNic userFullName [password] [host]
  * @author cin-tie
@@ -24,6 +24,36 @@ public class UdpClientMain {
 
     public static void main(String[] args) {
         Logger.logClient("Starting Remote Shell UDP Client...");
+
+        if(args.length < 3 || args.length > 4) {
+            Logger.logError("Invalid number of arguments\nUse: nic name host [password]");
+            Logger.logError("Examples:");
+            Logger.logError("       john \"John Doe\" localhost");
+            Logger.logError("       john \"John Doe\" localhost mypassword");
+            waitKeyToStop();
+            return;
+        }
+
+        String password = args.length == 4 ? args[3] : "";
+        String host = args[2];
+
+        try (DatagramSocket socket = new DatagramSocket()) {
+            InetAddress serverAddress = InetAddress.getByName(host);
+            Logger.logClient("UDP Client initialized");
+            session(socket, serverAddress, args[0], args[1], password);
+        } catch (Exception e) {
+            Logger.logError("UDP Connection failed: " + e.getMessage());
+        } finally {
+            Logger.logClient("UDP Client shutdown");
+        }
+    }
+
+    static void waitKeyToStop(){
+        Logger.logInfo("Press enter to stop...");
+        try {
+            System.in.read();
+        } catch (Exception e) {
+        }
     }
 
     static class UdpSession{
@@ -45,7 +75,7 @@ public class UdpClientMain {
         }
     }
 
-    static void session(DatagramSocket socket, String username, String usernameFull, String password, InetAddress serverAddress){
+    static void session(DatagramSocket socket, InetAddress serverAddress, String username, String usernameFull, String password){
         try (Scanner in = new Scanner(System.in)) {
             UdpSession s = new UdpSession(username, usernameFull, password, serverAddress);
             if(openSession(s, socket, in)){
@@ -85,13 +115,13 @@ public class UdpClientMain {
             s.connected = true;
             s.serverOS = msg.serverOS;
             s.currentDirectory = msg.currentDir;
-            Logger.logInfo("Connected by UDP to server: " + msg.serverOS);
+            Logger.logInfo("Connected via UDP to server: " + msg.serverOS);
             Logger.logInfo("Current directory: " + msg.currentDir);
             Logger.logInfo("Server version: " + msg.serverVersion);
             return true;
         }
 
-        Logger.logError("Unable to connect by UDP: " + msg.getErrorMessage());
+        Logger.logError("Unable to connect via UDP: " + msg.getErrorMessage());
         Logger.logInfo("Press Enter to continue...");
         if (in.hasNextLine()) {
             in.nextLine();

@@ -2,7 +2,7 @@ package csdev.server;
 
 import csdev.Protocol;
 import csdev.threads.ServerStopThread;
-import csdev.threads.ServerThread;
+import csdev.threads.TcpServerThread;
 import csdev.utils.Logger;
 
 import java.io.IOException;
@@ -26,7 +26,7 @@ public class ServerMain {
     private static Object syncFlags = new Object();
     private static boolean stopFlag = false;
     private static Object syncUsers = new Object();
-    private static TreeMap<String, ServerThread> users = new TreeMap<String, ServerThread>();
+    private static TreeMap<String, TcpServerThread> users = new TreeMap<String, TcpServerThread>();
 
     public static void main(String[] args) {
         Logger.logServer("Starting Remote Shell server...");
@@ -57,7 +57,7 @@ public class ServerMain {
                 if (socket != null) {
                     if (ServerMain.getNumUsers() < ServerMain.MAX_USERS) {
                         logConnection(socket.getInetAddress().getHostName() + " connected");
-                        ServerThread server = new ServerThread(socket);
+                        TcpServerThread server = new TcpServerThread(socket);
                         server.start();
                     } else {
                         logConnection(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
@@ -118,7 +118,7 @@ public class ServerMain {
         String[] users = getUsers();
         Logger.logInfo("Disconnecting all users: " + users.length + " active sessions");
         for (String user : users) {
-            ServerThread ut = getUser(user);
+            TcpServerThread ut = getUser(user);
             if (ut != null) {
                 ut.gracefulDisconnect();
             }
@@ -170,15 +170,15 @@ public class ServerMain {
         }
     }
 
-    public static ServerThread getUser(String user) {
+    public static TcpServerThread getUser(String user) {
         synchronized (ServerMain.syncUsers) {
             return ServerMain.users.get(user);
         }
     }
 
-    public static ServerThread registerUser(String username, ServerThread user) {
+    public static TcpServerThread registerUser(String username, TcpServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread old = ServerMain.users.get(username);
+            TcpServerThread old = ServerMain.users.get(username);
             if(old == null) {
                 ServerMain.users.put(username, user);
 
@@ -188,9 +188,9 @@ public class ServerMain {
         }
     }
 
-    public static ServerThread setUser(String username, ServerThread user) {
+    public static TcpServerThread setUser(String username, TcpServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread res = ServerMain.users.put(username, user);
+            TcpServerThread res = ServerMain.users.put(username, user);
             if (user == null) {
                 ServerMain.users.remove(username);
                 logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");

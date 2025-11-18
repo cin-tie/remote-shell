@@ -5,12 +5,13 @@ import csdev.messages.*;
 import csdev.utils.Logger;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.TreeMap;
 
 /**
- * <p>Main class of client application using Tcp protocol
+ * <p>Main class of client application using TCP protocol
  * <p>Remote shell client for MacOS/Linux/Unix servers
  * <br>Use arguments: userNic userFullName [password] [host]
  * @author cin-tie
@@ -39,7 +40,7 @@ public class TcpClientMain {
 
         try (Socket sock = new Socket(host, Protocol.PORT)) {
             Logger.logClient("TCP Client initialized");
-            session(sock, args[0], args[1], password);
+            session(sock, args[0], args[1], password, sock.getInetAddress());
         } catch (Exception e) {
             Logger.logError("TCP Connection failed: " + e.getMessage());
         } finally {
@@ -62,20 +63,22 @@ public class TcpClientMain {
         String password = "";
         String currentDirectory = "";
         String serverOS = "";
+        InetAddress serverAddress = null;
 
-        TcpSession(String username, String usernameFull, String password){
+        TcpSession(String username, String usernameFull, String password, InetAddress serverAddress){
             this.username = username;
             this.usernameFull = usernameFull;
             this.password = password;
+            this.serverAddress = serverAddress;
         }
     }
 
-    static void session(Socket socket, String username, String usernameFull, String password){
+    static void session(Socket socket, String username, String usernameFull, String password, InetAddress serverAddress){
         try(Scanner in = new Scanner(System.in);
             ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
             ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream())){
 
-            TcpSession s = new TcpSession(username, usernameFull, password);
+            TcpSession s = new TcpSession(username, usernameFull, password, serverAddress);
             if(openSession(s, is, os, in)){
                 try {
                     displayWelcome(s);
@@ -112,13 +115,13 @@ public class TcpClientMain {
             s.connected = true;
             s.serverOS = msg.serverOS;
             s.currentDirectory = msg.currentDir;
-            Logger.logInfo("Connected by TCP to server: " + msg.serverOS);
+            Logger.logInfo("Connected via TCP to server: " + msg.serverOS);
             Logger.logInfo("Current directory: " + msg.currentDir);
             Logger.logInfo("Server version: " + msg.serverVersion);
             return true;
         }
 
-        Logger.logError("Unable to connect by TCP: " + msg.getErrorMessage());
+        Logger.logError("Unable to connect via TCP: " + msg.getErrorMessage());
         Logger.logInfo("Press Enter to continue...");
         if (in.hasNextLine()) {
             in.nextLine();
