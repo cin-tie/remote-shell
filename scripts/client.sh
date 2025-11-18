@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$USER_NICK" ] || [ -z "$USER_FULL" ]; then
-    IP=$(hostname -I | awk '{print $1}')
+    IP=$(hostname -I | awk '{print $1}' | curl ifconfig.me)
     USER_NICK="guest_from_$IP"
     USER_FULL="Guest User from $IP"
     echo "No user specified - using auto-generated: $USER_NICK"

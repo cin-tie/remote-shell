@@ -13,7 +13,7 @@ import java.util.TreeMap;
 /**
  * <p>Main class of client application using TCP protocol
  * <p>Remote shell client for MacOS/Linux/Unix servers
- * <br>Use arguments: userNic userFullName [password] [host]
+ * <br>Use arguments: userNic userFullName host [password]
  * @author cin-tie
  * @version 1.2
  */
