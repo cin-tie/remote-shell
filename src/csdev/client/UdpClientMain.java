@@ -5,78 +5,50 @@ import csdev.messages.*;
 import csdev.utils.Logger;
 
 import java.io.*;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.Scanner;
 import java.util.TreeMap;
 
 /**
- * <p>Main class of client application using Tcp protocol
+ * <p>Main class of client application using Udp protocol
  * <p>Remote shell client for MacOS/Linux/Unix servers
  * <br>Use arguments: userNic userFullName [password] [host]
  * @author cin-tie
- * @version 1.2
+ * @version 1.0
+ *
  */
-public class TcpClientMain {
+public class UdpClientMain {
 
     public static void main(String[] args) {
-        Logger.logClient("Starting Remote Shell TCP Client...");
-
-        if(args.length < 3 || args.length > 4) {
-            Logger.logError("Invalid number of arguments\nUse: nic name host [password]");
-            Logger.logError("Examples:");
-            Logger.logError("       john \"John Doe\" localhost");
-            Logger.logError("       john \"John Doe\" localhost mypassword");
-            waitKeyToStop();
-            return;
-        }
-
-        String password = args.length == 4 ? args[3] : "";
-        String host = args[2];
-        Logger.logInfo("Connecting to " + host + " as " + args[0] + " (" + args[1] + ")");
-        if (password.isEmpty()) {
-            Logger.logWarning("No password provided - connection may fail if server requires authentication");
-        }
-
-        try (Socket sock = new Socket(host, Protocol.PORT)) {
-            Logger.logClient("TCP Client initialized");
-            session(sock, args[0], args[1], password);
-        } catch (Exception e) {
-            Logger.logError("TCP Connection failed: " + e.getMessage());
-        } finally {
-            Logger.logClient("TCP Client shutdown");
-        }
+        Logger.logClient("Starting Remote Shell UDP Client...");
     }
 
-    static void waitKeyToStop(){
-        Logger.logInfo("Press enter to stop...");
-        try {
-            System.in.read();
-        } catch (Exception e) {
-        }
-    }
-
-    static class TcpSession {
+    static class UdpSession{
         boolean connected = false;
         String username = null;
         String usernameFull = null;
         String password = "";
         String currentDirectory = "";
         String serverOS = "";
+        InetAddress serverAddress;
+        int serverPort = Protocol.PORT;
 
-        TcpSession(String username, String usernameFull, String password){
+        public UdpSession(String username, String usernameFull, String password, InetAddress serverAddress)
+        {
             this.username = username;
             this.usernameFull = usernameFull;
             this.password = password;
+            this.serverAddress = serverAddress;
         }
     }
 
-    static void session(Socket socket, String username, String usernameFull, String password){
-        try(Scanner in = new Scanner(System.in);
-            ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
-            ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream())){
-
-            TcpSession s = new TcpSession(username, usernameFull, password);
-            if(openSession(s, is, os, in)){
+    static void session(DatagramSocket socket, String username, String usernameFull, String password, InetAddress serverAddress){
+        try (Scanner in = new Scanner(System.in)) {
+            UdpSession s = new UdpSession(username, usernameFull, password, serverAddress);
+            if(openSession(s, socket, in)){
                 try {
                     displayWelcome(s);
                     while (s.connected) {
@@ -84,41 +56,42 @@ public class TcpClientMain {
                         if(msg == null) {
                             break;
                         }
-                        if (!processCommand(s, msg, is, os, in)) {
+                        if (!processCommand(s, msg, socket, in)) {
                             break;
                         }
                     }
                 } finally {
-                    closeSession(s, os);
+                    closeSession(s, socket);
                 }
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             if (!e.getMessage().contains("Server is shutting down") &&
                     !e.getMessage().contains("Connection reset") &&
                     !e.getMessage().contains("Обрыв канала")) {
-                Logger.logError("TCP Session Error: " + e.getMessage());
+                Logger.logError("UDP Session Error: " + e.getMessage());
             } else {
                 Logger.logInfo("Disconnected from server: " + e.getMessage());
             }
         }
     }
 
-    static boolean openSession(TcpSession s, ObjectInputStream is, ObjectOutputStream os, Scanner in) throws IOException, ClassNotFoundException {
-        Logger.logDebug("Sending TCP connection request...");
-        os.writeObject(new MessageConnect(s.username, s.usernameFull, s.password));
-        MessageConnectResult msg = (MessageConnectResult) is.readObject();
+    static boolean openSession(UdpSession s, DatagramSocket socket, Scanner in) throws IOException, ClassNotFoundException {
+        Logger.logDebug("Sending UDP connection request...");
+        MessageConnect messageConnect = new MessageConnect(s.username, s.usernameFull, s.password);
+        sendMessage(socket, s.serverAddress, s.serverPort, messageConnect);
+        MessageConnectResult msg = (MessageConnectResult) recieveMessage(socket, 30000);
 
         if(!msg.Error()){
             s.connected = true;
             s.serverOS = msg.serverOS;
             s.currentDirectory = msg.currentDir;
-            Logger.logInfo("Connected by TCP to server: " + msg.serverOS);
+            Logger.logInfo("Connected by UDP to server: " + msg.serverOS);
             Logger.logInfo("Current directory: " + msg.currentDir);
             Logger.logInfo("Server version: " + msg.serverVersion);
             return true;
         }
 
-        Logger.logError("Unable to connect by TCP: " + msg.getErrorMessage());
+        Logger.logError("Unable to connect by UDP: " + msg.getErrorMessage());
         Logger.logInfo("Press Enter to continue...");
         if (in.hasNextLine()) {
             in.nextLine();
@@ -126,15 +99,42 @@ public class TcpClientMain {
         return false;
     }
 
-    static void closeSession(TcpSession s, ObjectOutputStream os) throws IOException {
-        if(s.connected){
+    static void closeSession(UdpSession s, DatagramSocket socket) throws IOException {
+        if(s.connected) {
             s.connected = false;
-            os.writeObject(new MessageDisconnect("Client shutdown"));
+            MessageDisconnect messageDisconnect = new MessageDisconnect("Client shutdown");
+            sendMessage(socket, s.serverAddress, Protocol.PORT, messageDisconnect);
             Logger.logInfo("Disconnected from TCP server");
         }
     }
 
-    static void displayWelcome(TcpSession s){
+    private static void sendMessage(DatagramSocket socket, InetAddress address, int port, Message msg) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(msg);
+        oos.flush();
+        byte[] data = baos.toByteArray();
+        DatagramPacket dp = new DatagramPacket(data, data.length, address, port);
+        socket.send(dp);
+    }
+
+    private static Message recieveMessage(DatagramSocket socket, int timeout) throws IOException, ClassNotFoundException {
+        socket.setSoTimeout(timeout);
+
+        byte[] data = new byte[1024];
+        DatagramPacket dp = new DatagramPacket(data, data.length);
+
+        try{
+            socket.receive(dp);
+            ByteArrayInputStream bais = new ByteArrayInputStream(dp.getData(), 0, dp.getLength());
+            ObjectInputStream ois = new ObjectInputStream(bais);
+            return (Message) ois.readObject();
+        } catch (SocketTimeoutException e) {
+            return null;
+        }
+    }
+
+    static void displayWelcome(UdpSession s){
         System.out.println("\n" + "=".repeat(60));
         System.out.println("    REMOTE SHELL CLIENT");
         System.out.println("=".repeat(60));
@@ -158,7 +158,7 @@ public class TcpClientMain {
         System.out.println("=".repeat(60) + "\n");
     }
 
-    static Message getCommand(TcpSession ses, Scanner in) {
+    static Message getCommand(UdpSession ses, Scanner in) {
         while (true) {
             printPrompt(ses);
             if (!in.hasNextLine())
@@ -298,44 +298,13 @@ public class TcpClientMain {
         return new MessageChdir(newDir);
     }
 
-    static TreeMap<String, Byte> commands = new TreeMap<String, Byte>();
-
-    static {
-        commands.put("q", (byte) -1);
-        commands.put("quit", (byte) -1);
-        commands.put("exit", (byte) -1);
-        commands.put("e", Protocol.CMD_EXECUTE);
-        commands.put("execute", Protocol.CMD_EXECUTE);
-        commands.put("u", Protocol.CMD_UPLOAD);
-        commands.put("upload", Protocol.CMD_UPLOAD);
-        commands.put("d", Protocol.CMD_DOWNLOAD);
-        commands.put("download", Protocol.CMD_DOWNLOAD);
-        commands.put("c", Protocol.CMD_CHDIR);
-        commands.put("cd", Protocol.CMD_CHDIR);
-        commands.put("p", Protocol.CMD_GETDIR);
-        commands.put("pwd", Protocol.CMD_GETDIR);
-        commands.put("h", (byte) -2);
-        commands.put("help", (byte) -2);
-    }
-
-    static byte translateCmd(String str) {
-        str = str.trim().toLowerCase();
-        Byte r = commands.get(str);
-        return (r == null ? 0 : r.byteValue());
-    }
-
-    static void printPrompt(TcpSession s) {
-        System.out.print(s.username + "@" + s.currentDirectory + "> ");
-        System.out.flush();
-    }
-
-    static boolean processCommand(TcpSession s, Message msg, ObjectInputStream is, ObjectOutputStream os, Scanner in)
+    static boolean processCommand(UdpSession s, Message msg, DatagramSocket socket, Scanner in)
             throws IOException, ClassNotFoundException {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
-            os.writeObject(msg);
+            sendMessage(socket, s.serverAddress, Protocol.PORT, msg);
             try {
-                MessageResult res = (MessageResult) is.readObject();
+                MessageResult res = (MessageResult) recieveMessage(socket, 30000);
 
                 if (res.Error()) {
                     Logger.logError("Server error: " + res.getErrorMessage());
@@ -375,6 +344,37 @@ public class TcpClientMain {
             }
         }
         return false;
+    }
+
+    static TreeMap<String, Byte> commands = new TreeMap<String, Byte>();
+
+    static {
+        commands.put("q", (byte) -1);
+        commands.put("quit", (byte) -1);
+        commands.put("exit", (byte) -1);
+        commands.put("e", Protocol.CMD_EXECUTE);
+        commands.put("execute", Protocol.CMD_EXECUTE);
+        commands.put("u", Protocol.CMD_UPLOAD);
+        commands.put("upload", Protocol.CMD_UPLOAD);
+        commands.put("d", Protocol.CMD_DOWNLOAD);
+        commands.put("download", Protocol.CMD_DOWNLOAD);
+        commands.put("c", Protocol.CMD_CHDIR);
+        commands.put("cd", Protocol.CMD_CHDIR);
+        commands.put("p", Protocol.CMD_GETDIR);
+        commands.put("pwd", Protocol.CMD_GETDIR);
+        commands.put("h", (byte) -2);
+        commands.put("help", (byte) -2);
+    }
+
+    static byte translateCmd(String str) {
+        str = str.trim().toLowerCase();
+        Byte r = commands.get(str);
+        return (r == null ? 0 : r.byteValue());
+    }
+
+    static void printPrompt(UdpSession s) {
+        System.out.print(s.username + "@" + s.currentDirectory + "> ");
+        System.out.flush();
     }
 
     static void printExecuteResult(MessageExecuteResult m) {
@@ -488,12 +488,12 @@ public class TcpClientMain {
         System.out.println("File size: " + file.length() + " bytes");
     }
 
-    static void printChdirResult(TcpSession s, MessageChdirResult msg){
+    static void printChdirResult(UdpSession s, MessageChdirResult msg){
         s.currentDirectory = msg.newDirectory;
         System.out.println("Directory changed: " + msg.oldDirectory + " -> " + msg.newDirectory);
     }
 
-    static void printGetdirResult(TcpSession s, MessageGetdirResult msg){
+    static void printGetdirResult(UdpSession s, MessageGetdirResult msg){
         s.currentDirectory = msg.currentDirectory;
         System.out.println("Current directory: " + msg.currentDirectory);
     }
