@@ -2,6 +2,7 @@ package csdev.threads.session;
 
 import csdev.messages.Message;
 import csdev.server.ServerMain;
+import csdev.threads.TcpServerThread;
 import csdev.utils.Logger;
 
 import java.io.IOException;
@@ -47,13 +48,10 @@ public abstract class ClientSession {
     }
 
     protected void register(String username, String usernameFull) {
-        ClientSession old = ServerMain.registerUser(username, this);
-        if(old == null){
-            if(this.username == null){
-                this.username = username;
-                this.usernameFull = usernameFull;
-                logInfo("User '" + usernameFull + "' registered as '" + username + "'");
-            }
+        if(this.username == null){
+            this.username = username;
+            this.usernameFull = usernameFull;
+            logInfo("User '" + usernameFull + "' registered as '" + username + "'");
         }
     }
 

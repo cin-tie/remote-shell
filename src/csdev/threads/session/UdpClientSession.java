@@ -69,6 +69,10 @@ public class UdpClientSession extends ClientSession{
         return sb.toString();
     }
 
+    public void registerUser(String username, String usernameFull) {
+        register(username, usernameFull);
+    }
+
     private void updateActivity(){
         this.lastActivity = System.currentTimeMillis();
     }

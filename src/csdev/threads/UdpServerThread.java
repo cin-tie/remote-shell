@@ -91,7 +91,7 @@ public class UdpServerThread extends Thread {
     private void processMessage(Message msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         switch (msg.getId()) {
             case Protocol.CMD_CONNECT:
-                hanleConnect((MessageConnect) msg, address, port);
+                handleConnect((MessageConnect) msg, address, port);
                 break;
 
             case Protocol.CMD_DISCONNECT:
@@ -124,7 +124,7 @@ public class UdpServerThread extends Thread {
         }
     }
 
-    private void hanleConnect(MessageConnect msg, InetAddress address, int port) throws IOException {
+    private void handleConnect(MessageConnect msg, InetAddress address, int port) throws IOException {
         String clientKey = getClientKey(address, port);
         Logger.logInfo("UDP connecting attempt from: " + msg.username + "(" + msg.usernameFull + ") at " + clientKey);
 
@@ -145,7 +145,7 @@ public class UdpServerThread extends Thread {
         }
 
         UdpClientSession session = new UdpClientSession(address, port, this);
-        session.register(msg.username, msg.usernameFull);
+        session.registerUser(msg.username, msg.usernameFull);
         sessions.put(clientKey, session);
 
         String serverOS = System.getProperty("os.name") + " " + System.getProperty("os.version");
