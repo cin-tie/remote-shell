@@ -26,7 +26,7 @@ public class UdpServerThread extends Thread {
 
     private DatagramSocket socket;
     private boolean running = true;
-    private byte[] buffer = new byte[1024];
+    private byte[] buffer = new byte[4096];
 
     private ConcurrentHashMap<String, UdpClientSession> sessions = new ConcurrentHashMap<>();
     private ThreadPoolExecutor executor;

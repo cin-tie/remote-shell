@@ -151,7 +151,7 @@ public class UdpClientMain {
     private static Message recieveMessage(DatagramSocket socket, int timeout) throws IOException, ClassNotFoundException {
         socket.setSoTimeout(timeout);
 
-        byte[] data = new byte[1024];
+        byte[] data = new byte[4096];
         DatagramPacket dp = new DatagramPacket(data, data.length);
 
         try{
