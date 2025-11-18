@@ -32,12 +32,6 @@ while [[ $# -gt 0 ]]; do
             PROTOCOL="$2"
             shift 2
             ;;
-        --tcp)
-            PROTOCOL="tcp"
-            ;;
-        --udp)
-            PROTOCOL="udp"
-            ;;
         *)
             echo "Unknown option: $1"
             echo "Usage: $0 [-u <nick> \"<full name>\"] [-h host] [-p password]"
@@ -46,15 +40,13 @@ while [[ $# -gt 0 ]]; do
             echo "    -h hostname"
             echo "    -p password"
             echo "    -pr tcp|udp (default: tcp)"
-            echo "    --tcp (use TCP protocol)"
-            echo "    --udp (use UDP protocol)"
             exit 1
             ;;
     esac
 done
 
 if [ -z "$USER_NICK" ] || [ -z "$USER_FULL" ]; then
-    IP=$(hostname -I | awk '{print $1}' | curl ifconfig.me)
+    IP=$(ip -4 addr show scope global | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
     USER_NICK="guest_from_$IP"
     USER_FULL="Guest User from $IP"
     echo "No user specified - using auto-generated: $USER_NICK"

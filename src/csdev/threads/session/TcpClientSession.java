@@ -239,7 +239,7 @@ public class TcpClientSession extends ClientSession {
             }
 
             boolean isPartial = (offset > 0 || length < size);
-            MessageDownloadResult result = new MessageDownloadResult(file.getName(), size, fileData, isPartial);
+            MessageDownloadResult result = new MessageDownloadResult(file.getName(), size, fileData, isPartial, false);
             sendMessage(result);
             logInfo("File downloaded successfully: " + file.getAbsolutePath() + " [size=" + size + " bytes, sent=" + length + " bytes, partial=" + isPartial + "]");
         } catch (Exception e) {

@@ -18,6 +18,7 @@ public class MessageDownloadResult extends MessageResult implements Serializable
     public long dataSize;           // Actual downloaded data size
     public byte[] fileData;         // File content
     public boolean isPartial;       // Whether this is a partial download
+    public boolean isFragmented;    // Whether this is fragmented UDP
 
     public MessageDownloadResult(String errorMessage){
         super(Protocol.CMD_DOWNLOAD, errorMessage);
@@ -26,14 +27,16 @@ public class MessageDownloadResult extends MessageResult implements Serializable
         this.dataSize = 0;
         this.fileData = null;
         this.isPartial = false;
+        this.isFragmented = false;
     }
 
-    public MessageDownloadResult(String fileName, long fileSize, byte[] fileData,  boolean isPartial){
+    public MessageDownloadResult(String fileName, long fileSize, byte[] fileData,  boolean isPartial, boolean isFragmented){
         super(Protocol.CMD_DOWNLOAD);
         this.fileName = fileName;
         this.fileSize = fileSize;
         this.fileData = fileData;
         this.dataSize = fileData != null ? fileData.length : 0;
         this.isPartial = isPartial;
+        this.isFragmented = isFragmented;
     }
 }
