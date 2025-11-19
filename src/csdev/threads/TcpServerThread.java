@@ -53,13 +53,15 @@ public class TcpServerThread extends Thread {
     }
 
     private void logDebug(String message) {
-        System.out.println();
-        Logger.logDebug(message);
-        restorePrompt();
+        if(Logger.getDebugEnabled()) {
+            System.out.print(" ");
+            Logger.logDebug(message);
+            restorePrompt();
+        }
     }
 
     private void logError(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logError(message);
         restorePrompt();
     }

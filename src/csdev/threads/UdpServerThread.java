@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * <p>UDP server thread for handling client connections
  * (modified to support fragment upload/download with ACKs)
- * @author cin-tie (modified)
+ * @author cin-tie
  * @version 1.1
  */
 public class UdpServerThread extends Thread {
@@ -113,13 +113,13 @@ public class UdpServerThread extends Thread {
             UdpClientSession session = sessions.get(clientKey);
 
             if(session == null && msg.getId() != Protocol.CMD_CONNECT){
-                Logger.logWarning("UDP packet from unknown client: " + clientKey + " msgId=" + msg.getId());
+                logWarning("UDP packet from unknown client: " + clientKey + " msgId=" + msg.getId());
                 return;
             }
 
             processMessage(msg, packet.getAddress(), packet.getPort(), session);
         } catch (Exception e){
-            Logger.logError("Error processing UDP packet: " + e.getMessage());
+            logError("Error processing UDP packet: " + e.getMessage());
         }
     }
 
@@ -162,20 +162,20 @@ public class UdpServerThread extends Thread {
                 break;
 
             default:
-                Logger.logError("Unknown message type: " + msg.getId());
+                logError("Unknown message type: " + msg.getId());
                 break;
         }
     }
 
     private void handleConnect(MessageConnect msg, InetAddress address, int port) throws IOException {
         String clientKey = getClientKey(address, port);
-        Logger.logInfo("UDP connecting attempt from: " + msg.username + "(" + msg.usernameFull + ") at " + clientKey);
+        logInfo("UDP connecting attempt from: " + msg.username + "(" + msg.usernameFull + ") at " + clientKey);
 
         if(ServerMain.isPasswordRequired()){
             if(msg.password == null || !msg.password.equals(ServerMain.getServerPassword())){
                 MessageConnectResult result = new MessageConnectResult("WrongPassword");
                 sendMessage(address, port, result);
-                Logger.logWarning("UDP connection rejected - invalid password for user: " + msg.username);
+                logWarning("UDP connection rejected - invalid password for user: " + msg.username);
                 return;
             }
         }
@@ -183,7 +183,7 @@ public class UdpServerThread extends Thread {
         if(ServerMain.getUser(msg.username) != null){
             MessageConnectResult result = new MessageConnectResult("User already connected: " + msg.username);
             sendMessage(address, port, result);
-            Logger.logWarning("UDP connection rejected - user already connected: " + msg.username);
+            logWarning("UDP connection rejected - user already connected: " + msg.username);
             return;
         }
 
@@ -195,7 +195,7 @@ public class UdpServerThread extends Thread {
         String serverVersion = "Remote Shell server 1.1";
         MessageConnectResult result = new MessageConnectResult(serverOS, session.getCurrentDirectory(), serverVersion);
         sendMessage(address, port, result);
-        Logger.logInfo("User connected successfully via UDP: " + msg.username + " from " + clientKey);
+        logInfo("User connected successfully via UDP: " + msg.username + " from " + clientKey);
     }
 
     private void handleDisconnect(InetAddress address, int port) throws IOException {
@@ -204,7 +204,7 @@ public class UdpServerThread extends Thread {
         if(session != null){
             session.disconnect();
             sessions.remove(clientKey);
-            Logger.logInfo("UDP Client disconnected: " + session.getUsername() + " from " + clientKey);
+            logInfo("UDP Client disconnected: " + session.getUsername() + " from " + clientKey);
         }
     }
 
@@ -212,7 +212,7 @@ public class UdpServerThread extends Thread {
         if(session == null)
             return;
 
-        Logger.logInfo("Executing UDP command for " + session.getUsername() + ": " + msg.command);
+        logInfo("Executing UDP command for " + session.getUsername() + ": " + msg.command);
 
         try {
             String command = msg.command;
@@ -245,7 +245,7 @@ public class UdpServerThread extends Thread {
                 process.destroyForcibly();
                 MessageExecuteResult result = new MessageExecuteResult("Command timed out after " + timeout + "ms");
                 session.sendMessage(result);
-                Logger.logWarning("UDP Command timeout for " + session.getUsername() + ": " + command);
+                logWarning("UDP Command timeout for " + session.getUsername() + ": " + command);
                 return;
             }
 
@@ -256,10 +256,10 @@ public class UdpServerThread extends Thread {
             MessageExecuteResult result = new MessageExecuteResult(output, error, exitCode, executionTime, workingDir);
             session.sendMessage(result);
 
-            Logger.logInfo("UDP Command completed for " + session.getUsername() + " [exitCode=" + exitCode + ", time=" + executionTime + "ms]");
+            logInfo("UDP Command completed for " + session.getUsername() + " [exitCode=" + exitCode + ", time=" + executionTime + "ms]");
 
         } catch (Exception e) {
-            Logger.logError("UDP Command execution failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("UDP Command execution failed for " + session.getUsername() + ": " + e.getMessage());
             MessageExecuteResult result = new MessageExecuteResult("Command execution failed: " + e.getMessage());
             session.sendMessage(result);
         }
@@ -268,7 +268,7 @@ public class UdpServerThread extends Thread {
     private void handleUpload(MessageUpload msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
 
-        Logger.logInfo("Uploading file via UDP from " + session.getUsername() + ": " + msg.fileName);
+        logInfo("Uploading file via UDP from " + session.getUsername() + ": " + msg.fileName);
 
         try {
             File targetDir = new File(msg.filePath.isEmpty() ? session.getCurrentDirectory() : msg.filePath);
@@ -294,9 +294,9 @@ public class UdpServerThread extends Thread {
             MessageUploadResult result = new MessageUploadResult(targetFile.getAbsolutePath(), msg.fileSize, fileExists);
             session.sendMessage(result);
 
-            Logger.logInfo("UDP File uploaded successfully: " + targetFile.getAbsolutePath() + " [size=" + msg.fileSize + " bytes, overwrite=" + fileExists + "]");
+            logInfo("UDP File uploaded successfully: " + targetFile.getAbsolutePath() + " [size=" + msg.fileSize + " bytes, overwrite=" + fileExists + "]");
         } catch (Exception e) {
-            Logger.logError("UDP File upload failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("UDP File upload failed for " + session.getUsername() + ": " + e.getMessage());
             MessageUploadResult result = new MessageUploadResult("File upload failed: " + e.getMessage());
             session.sendMessage(result);
         }
@@ -305,7 +305,7 @@ public class UdpServerThread extends Thread {
     private void handleDownload(MessageDownload msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
 
-        Logger.logInfo("UDP File download request from " + session.getUsername() + ": " + msg.filePath);
+        logInfo("UDP File download request from " + session.getUsername() + ": " + msg.filePath);
 
         try {
             File file = new File(msg.filePath.isEmpty() ? session.getCurrentDirectory() : msg.filePath);
@@ -331,7 +331,7 @@ public class UdpServerThread extends Thread {
             sendLargeFileFragmented(file, session, address, port, msg.filePath);
 
         } catch (Exception e) {
-            Logger.logError("UDP File download failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("UDP File download failed for " + session.getUsername() + ": " + e.getMessage());
             MessageDownloadResult result = new MessageDownloadResult("File download failed: " + e.getMessage());
             session.sendMessage(result);
         }
@@ -350,7 +350,7 @@ public class UdpServerThread extends Thread {
 
         MessageDownloadResult result = new MessageDownloadResult(file.getName(), fileSize, fileData, false, false);
         session.sendMessage(result);
-        Logger.logInfo("UDP Small file downloaded: " + filePath + " [size=" + fileSize + " bytes]");
+        logInfo("UDP Small file downloaded: " + filePath + " [size=" + fileSize + " bytes]");
     }
 
     private void sendLargeFileFragmented(File file, UdpClientSession session, InetAddress address, int port, String filePath) {
@@ -362,7 +362,7 @@ public class UdpServerThread extends Thread {
                     BufferedInputStream bis = new BufferedInputStream(fis);
                     int read = bis.read(all);
                     if (read != fileSize) {
-                        Logger.logError("Failed to read full file for fragmentation: " + filePath);
+                        logError("Failed to read full file for fragmentation: " + filePath);
                         session.sendMessage(new MessageDownloadResult("Failed to read file for fragmentation: " + filePath));
                         return;
                     }
@@ -370,7 +370,7 @@ public class UdpServerThread extends Thread {
 
                 int total = (all.length + MAX_FRAGMENT_SIZE - 1) / MAX_FRAGMENT_SIZE;
                 String fileId = file.getName() + "_" + System.currentTimeMillis();
-                Logger.logInfo("Starting fragmented download to " + session.getUsername() + ": file=" + filePath + " size=" + all.length + " fragments=" + total + " fileId=" + fileId);
+                logInfo("Starting fragmented download to " + session.getUsername() + ": file=" + filePath + " size=" + all.length + " fragments=" + total + " fileId=" + fileId);
 
                 FileTransferSession fts = new FileTransferSession(fileId, getClientKey(address, port), total, true);
                 fileSessions.put(getSessionKey(fileId, getClientKey(address, port)), fts);
@@ -393,7 +393,7 @@ public class UdpServerThread extends Thread {
                     while (!ackReceived && tries < MAX_RETRIES) {
                         tries++;
                         sendMessage(address, port, frag);
-                        Logger.logDebug("Sent fragment to " + session.getUsername() + " idx=" + idx + " try=" + tries);
+                        logDebug("Sent fragment to " + session.getUsername() + " idx=" + idx + " try=" + tries);
                         long waitStart = System.currentTimeMillis();
                         synchronized (fts) {
                             long waited = 0;
@@ -410,30 +410,30 @@ public class UdpServerThread extends Thread {
                         }
 
                         if (!ackReceived) {
-                            Logger.logWarning("No ACK from " + session.getUsername() + " for fragment " + idx + " (try " + tries + ")");
+                            logWarning("No ACK from " + session.getUsername() + " for fragment " + idx + " (try " + tries + ")");
                         } else {
-                            Logger.logDebug("ACK received for fragment " + idx + " from " + session.getUsername());
+                            logDebug("ACK received for fragment " + idx + " from " + session.getUsername());
                         }
                     }
 
                     if (!ackReceived) {
-                        Logger.logError("Failed to receive ACK for fragment " + idx + " after " + MAX_RETRIES + " tries. Aborting transfer.");
+                        logError("Failed to receive ACK for fragment " + idx + " after " + MAX_RETRIES + " tries. Aborting transfer.");
                         fileSessions.remove(getSessionKey(fileId, getClientKey(address, port)));
                         session.sendMessage(new MessageDownloadResult("Failed to send file: transfer aborted (missing ACKs)"));
                         return;
                     }
                 }
 
-                Logger.logInfo("Fragmented download finished for " + session.getUsername() + " fileId=" + fileId);
+                logInfo("Fragmented download finished for " + session.getUsername() + " fileId=" + fileId);
                 MessageDownloadResult finalMsg = new MessageDownloadResult(file.getName(), file.length(), null, false, true);
                 session.sendMessage(finalMsg);
                 fileSessions.remove(getSessionKey(fileId, getClientKey(address, port)));
             } catch (Exception e) {
-                Logger.logError("Error in fragmented download thread: " + e.getMessage());
+                logError("Error in fragmented download thread: " + e.getMessage());
                 try {
                     session.sendMessage(new MessageDownloadResult("File download failed: " + e.getMessage()));
                 } catch (IOException ioException) {
-                    Logger.logError("Failed to notify client about download failure: " + ioException.getMessage());
+                    logError("Failed to notify client about download failure: " + ioException.getMessage());
                 }
             }
         }).start();
@@ -443,7 +443,7 @@ public class UdpServerThread extends Thread {
     private void handleChdir(MessageChdir msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
 
-        Logger.logInfo("UDP Directory change request from " + session.getUsername() + ": " + msg.newDirectory);
+        logInfo("UDP Directory change request from " + session.getUsername() + ": " + msg.newDirectory);
 
         try {
             File newDir = new File(msg.newDirectory);
@@ -458,9 +458,9 @@ public class UdpServerThread extends Thread {
 
             MessageChdirResult result = new MessageChdirResult(session.getCurrentDirectory(), oldDirectory);
             session.sendMessage(result);
-            Logger.logInfo("UDP Directory changed for " + session.getUsername() + " successfully: " + oldDirectory + " -> " + session.getCurrentDirectory());
+            logInfo("UDP Directory changed for " + session.getUsername() + " successfully: " + oldDirectory + " -> " + session.getCurrentDirectory());
         } catch (Exception e) {
-            Logger.logError("UDP Directory change failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("UDP Directory change failed for " + session.getUsername() + ": " + e.getMessage());
             MessageChdirResult result = new MessageChdirResult("Directory change failed: " + e.getMessage());
             session.sendMessage(result);
         }
@@ -469,13 +469,13 @@ public class UdpServerThread extends Thread {
     private void handleGetdir(MessageGetdir msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
 
-        Logger.logDebug("UDP Current directory request from " + session.getUsername());
+        logDebug("UDP Current directory request from " + session.getUsername());
 
         try {
             MessageGetdirResult result = new MessageGetdirResult(session.getCurrentDirectory(), 0);
             session.sendMessage(result);
         } catch (Exception e) {
-            Logger.logError("UDP Get directory failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("UDP Get directory failed for " + session.getUsername() + ": " + e.getMessage());
             MessageGetdirResult result = new MessageGetdirResult("Get directory failed: " + e.getMessage());
             session.sendMessage(result);
         }
@@ -528,14 +528,14 @@ public class UdpServerThread extends Thread {
             if (fts == null && msg.fragmentType == MessageFragment.FRAGMENT_START) {
                 byte[] payload = msg.data;
                 if (payload == null || payload.length < 4) {
-                    Logger.logWarning("Invalid fragment start without header from " + clientKey);
+                    logWarning("Invalid fragment start without header from " + clientKey);
                     MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                     sendMessage(address, port, nack);
                     return;
                 }
                 int headerLen = ((payload[0] & 0xFF) << 24) | ((payload[1] & 0xFF) << 16) | ((payload[2] & 0xFF) << 8) | (payload[3] & 0xFF);
                 if (headerLen < 0 || headerLen > payload.length - 4) {
-                    Logger.logWarning("Invalid header length in fragment start from " + clientKey);
+                    logWarning("Invalid header length in fragment start from " + clientKey);
                     MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                     sendMessage(address, port, nack);
                     return;
@@ -559,7 +559,7 @@ public class UdpServerThread extends Thread {
                 fts.overwrite = overwrite;
                 fts.fileSize = fileSize;
                 fileSessions.put(key, fts);
-                Logger.logInfo("Created upload session for " + clientKey + " fileId=" + msg.fileId + " fileName=" + fn + " totalFragments=" + msg.totalFragments);
+                logInfo("Created upload session for " + clientKey + " fileId=" + msg.fileId + " fileName=" + fn + " totalFragments=" + msg.totalFragments);
                 int remainder = payload.length - 4 - headerLen;
                 if (remainder > 0) {
                     byte[] chunk = new byte[remainder];
@@ -568,7 +568,7 @@ public class UdpServerThread extends Thread {
                     fts.receivedFragments++;
                 }
             } else if (fts == null) {
-                Logger.logWarning("Received non-start fragment for unknown upload session: fileId=" + msg.fileId + " from " + clientKey);
+                logWarning("Received non-start fragment for unknown upload session: fileId=" + msg.fileId + " from " + clientKey);
                 MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                 sendMessage(address, port, nack);
                 return;
@@ -577,7 +577,7 @@ public class UdpServerThread extends Thread {
                     fts.fragments[msg.fragmentIndex] = msg.data;
                     fts.receivedFragments++;
                 } else {
-                    Logger.logDebug("Duplicate fragment " + msg.fragmentIndex + " for " + msg.fileId + " from " + clientKey);
+                    logDebug("Duplicate fragment " + msg.fragmentIndex + " for " + msg.fileId + " from " + clientKey);
                 }
             }
 
@@ -585,12 +585,12 @@ public class UdpServerThread extends Thread {
             sendMessage(address, port, ack);
 
             if (fts.receivedFragments == fts.totalFragments) {
-                Logger.logInfo("All fragments received for upload fileId=" + msg.fileId + " from " + clientKey + " assembling...");
+                logInfo("All fragments received for upload fileId=" + msg.fileId + " from " + clientKey + " assembling...");
                 assembleAndSaveUpload(fts, address, port, session);
                 fileSessions.remove(key);
             }
         } catch (Exception e) {
-            Logger.logError("Error handling fragment from " + clientKey + ": " + e.getMessage());
+            logError("Error handling fragment from " + clientKey + ": " + e.getMessage());
             try {
                 MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                 sendMessage(address, port, nack);
@@ -603,15 +603,15 @@ public class UdpServerThread extends Thread {
         String key = getSessionKey(ack.fileId, clientKey);
         FileTransferSession fts = fileSessions.get(key);
         if (fts == null) {
-            Logger.logWarning("Received fragment ACK for unknown transfer: fileId=" + ack.fileId + " from " + clientKey);
+            logWarning("Received fragment ACK for unknown transfer: fileId=" + ack.fileId + " from " + clientKey);
             return;
         }
         if (!fts.isDownload) {
-            Logger.logWarning("Received fragment ACK for upload-session (?) fileId=" + ack.fileId + " from " + clientKey);
+            logWarning("Received fragment ACK for upload-session (?) fileId=" + ack.fileId + " from " + clientKey);
             return;
         }
         if (ack.fragmentIndex < 0 || ack.fragmentIndex >= fts.totalFragments) {
-            Logger.logWarning("Received fragment ACK index out of range: " + ack.fragmentIndex);
+            logWarning("Received fragment ACK index out of range: " + ack.fragmentIndex);
             return;
         }
         if (ack.received) {
@@ -620,9 +620,9 @@ public class UdpServerThread extends Thread {
                 fts.lastActivity = System.currentTimeMillis();
                 fts.notifyAll();
             }
-            Logger.logDebug("ACK registered for fragment " + ack.fragmentIndex + " fileId=" + ack.fileId + " from " + clientKey);
+            logDebug("ACK registered for fragment " + ack.fragmentIndex + " fileId=" + ack.fileId + " from " + clientKey);
         } else {
-            Logger.logWarning("Negative ACK for fragment " + ack.fragmentIndex + " fileId=" + ack.fileId + " from " + clientKey);
+            logWarning("Negative ACK for fragment " + ack.fragmentIndex + " fileId=" + ack.fileId + " from " + clientKey);
         }
     }
 
@@ -664,9 +664,9 @@ public class UdpServerThread extends Thread {
 
             MessageUploadResult res = new MessageUploadResult(outFile.getAbsolutePath(), fileData.length, existed);
             if (session != null) session.sendMessage(res);
-            Logger.logInfo("Saved uploaded file: " + outFile.getAbsolutePath() + " size=" + fileData.length);
+            logInfo("Saved uploaded file: " + outFile.getAbsolutePath() + " size=" + fileData.length);
         } catch (Exception e) {
-            Logger.logError("Failed to assemble/save uploaded file: " + e.getMessage());
+            logError("Failed to assemble/save uploaded file: " + e.getMessage());
             try {
                 if (session != null) session.sendMessage(new MessageUploadResult("File upload failed: " + e.getMessage()));
             } catch (IOException ignored) {}
@@ -700,4 +700,34 @@ public class UdpServerThread extends Thread {
         }
     }
 
+    protected void logInfo(String message) {
+        System.out.print(" ");
+        Logger.logInfo(message);
+        restorePrompt();
+    }
+
+    protected void logWarning(String message) {
+        System.out.print(" ");
+        Logger.logWarning(message);
+        restorePrompt();
+    }
+
+    private void logDebug(String message) {
+        if(Logger.getDebugEnabled()) {
+            System.out.print(" ");
+            Logger.logDebug(message);
+            restorePrompt();
+        }
+    }
+
+    private void logError(String message) {
+        System.out.print(" ");
+        Logger.logError(message);
+        restorePrompt();
+    }
+
+    private void restorePrompt() {
+        System.out.print("server> ");
+        System.out.flush();
+    }
 }

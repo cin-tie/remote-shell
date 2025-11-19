@@ -242,13 +242,13 @@ public class ServerMain {
     }
 
     private static void logInfo(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logInfo(message);
         restorePrompt();
     }
 
     private static void logConnection(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logServer(message);
         restorePrompt();
     }

@@ -63,27 +63,29 @@ public abstract class ClientSession {
     }
 
     protected void logInfo(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logInfo(message);
         restorePrompt();
     }
 
     protected void logWarning(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logWarning(message);
         restorePrompt();
     }
 
     protected void logError(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logError(message);
         restorePrompt();
     }
 
     protected void logDebug(String message) {
-        System.out.println();
-        Logger.logDebug(message);
-        restorePrompt();
+        if(Logger.getDebugEnabled()) {
+            System.out.print(" ");
+            Logger.logDebug(message);
+            restorePrompt();
+        }
     }
 
     protected void restorePrompt() {
