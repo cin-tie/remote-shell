@@ -87,7 +87,7 @@ java -cp build csdev.server.ServerMain "password"
 ./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password
 
 # Or run manually
-java -cp build csdev.client.ClientMain <username> "<fullname>" <host> [password]
+java -cp build ** john "John Doe" 127.0.0.1 [password]
 ```
 
 #### Client argument
