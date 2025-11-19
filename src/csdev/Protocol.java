@@ -34,16 +34,22 @@ interface PORT{
     int PORT = 8072;
 }
 
+interface PROTOCOL{
+    String TCP = "TCP";
+    String UDP = "UDP";
+}
+
 /**
  * <p>Protocol class: Protocol constants
  * @author cin-tie
  * @version 1.0
  */
-public class Protocol implements CMD, RESULT, PORT{
+public class Protocol implements CMD, RESULT, PORT,  PROTOCOL{
     private static final byte CMD_MIN = CMD_CONNECT;
     private static final byte CMD_MAX = CMD_GETDIR;
 
     public static boolean validID(byte id){
         return id >= CMD_MIN && id <= CMD_MAX;
     }
+    public static boolean validProtocol(String protocol){ return TCP.equalsIgnoreCase(protocol) || UDP.equalsIgnoreCase(protocol); }
 }

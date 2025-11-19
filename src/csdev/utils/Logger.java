@@ -17,37 +17,40 @@ public class Logger {
     public static void setDebugEnabled(boolean enabled) {
         debugEnabled =  enabled;
     }
+    public static boolean getDebugEnabled() {
+        return debugEnabled;
+    }
 
     public static void logInfo(String message) {
-        log("INFO", message);
+        log("[INFO]", message);
     }
 
     public static void logError(String message) {
-        log("ERROR", message);
+        log("\u001B[31m[ERROR]\u001B[0m", message);
     }
 
     public static void logWarning(String message) {
-        log("WARN", message);
+        log("\u001B[33m[WARN]\u001B[0m", message);
     }
 
     public static void logDebug(String message) {
         if (debugEnabled) {
-            log("DEBUG", message);
+            log("\u001B[32m[DEBUG]\u001B[0m", message);
         }
     }
 
     public static void logServer(String message) {
-        log("SERVER", message);
+        log("\u001B[35m[SERVER]\u001B[0m", message);
     }
 
     public static void logClient(String message) {
-        log("CLIENT", message);
+        log("\u001B[34m[CLIENT]\u001B[0m", message);
     }
 
     private static void log(String level, String message) {
         String timestamp = dateFormat.format(new Date());
         String threadName = Thread.currentThread().getName();
-        System.out.println(String.format("[%s] [%s] [%s] [%s] %s",
+        System.out.println(String.format("[%s] %s [%s] [%s] %s",
                 timestamp, level, threadName, getCallerClassName(), message));
     }
 

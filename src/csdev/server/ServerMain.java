@@ -2,31 +2,38 @@ package csdev.server;
 
 import csdev.Protocol;
 import csdev.threads.ServerStopThread;
-import csdev.threads.ServerThread;
+import csdev.threads.TcpServerThread;
+import csdev.threads.UdpServerThread;
+import csdev.threads.session.ClientSession;
+import csdev.threads.session.UdpClientSession;
 import csdev.utils.Logger;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 /**
  * <p>Main class of server application for remote shell
  * <p>Realized in console
- * <br>Use arguments: password
+ * <br>Use arguments: [password]
  * @author cin-tie
- * @version 1.3
+ * @version 1.4
  */
 public class ServerMain {
 
     public static final int MAX_USERS = 50;
-    private static ServerSocket serverSocket;
+    private static ServerSocket tcpServerSocket;
+    private static UdpServerThread udpServerThread;
     private static String serverPassword;
     private static boolean passwordRequired = false;
     private static Object syncFlags = new Object();
     private static boolean stopFlag = false;
     private static Object syncUsers = new Object();
-    private static TreeMap<String, ServerThread> users = new TreeMap<String, ServerThread>();
+    private static TreeMap<String, TcpServerThread> users = new TreeMap<>();
+
 
     public static void main(String[] args) {
         Logger.logServer("Starting Remote Shell server...");
@@ -45,8 +52,16 @@ public class ServerMain {
 
         try(ServerSocket serv = new ServerSocket(Protocol.PORT)) {
 
-            serverSocket = serv;
-            Logger.logServer("Server initialized on port " + serverSocket.getLocalPort());
+            tcpServerSocket = serv;
+            try {
+                udpServerThread = new UdpServerThread();
+                udpServerThread.start();
+                Logger.logServer("UDP Server started on port " + Protocol.PORT);
+            } catch (IOException e) {
+                Logger.logError("Failed to start UDP server: " + e.getMessage());
+            }
+
+            Logger.logServer("TCP Server initialized on port " + tcpServerSocket.getLocalPort());
 
             ServerStopThread stopThread = new ServerStopThread();
             stopThread.start();
@@ -56,11 +71,11 @@ public class ServerMain {
                 Socket socket = accept(serv);
                 if (socket != null) {
                     if (ServerMain.getNumUsers() < ServerMain.MAX_USERS) {
-                        logConnection(socket.getInetAddress().getHostName() + " connected");
-                        ServerThread server = new ServerThread(socket);
+                        logConnection("TCP: " + socket.getInetAddress().getHostName() + " connected");
+                        TcpServerThread server = new TcpServerThread(socket);
                         server.start();
                     } else {
-                        logConnection(socket.getInetAddress().getHostName() + " connection rejected - max users reached");
+                        logConnection("TCP: " + socket.getInetAddress().getHostName() + " connection rejected - max users reached");
                         socket.close();
                     }
                 }
@@ -114,16 +129,35 @@ public class ServerMain {
         return null;
     }
 
+    private static void stopAllServers() {
+        try {
+            if(tcpServerSocket != null && !tcpServerSocket.isClosed()){
+                tcpServerSocket.close();
+            }
+        } catch (IOException e) {
+            Logger.logError("Error closing TCP server socket: " + e.getMessage());
+        }
+
+        if(udpServerThread != null && udpServerThread.isAlive()){
+            udpServerThread.stopServer();
+            try {
+                udpServerThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Logger.logWarning("Interrupted while waiting for UDP server to stop");
+            }
+        }
+    }
+
     private static void stopAllUsers() {
         String[] users = getUsers();
         Logger.logInfo("Disconnecting all users: " + users.length + " active sessions");
         for (String user : users) {
-            ServerThread ut = getUser(user);
+            TcpServerThread ut = getUser(user);
             if (ut != null) {
                 ut.gracefulDisconnect();
             }
         }
-
     }
 
     private static void waitForUsersToDisconnect() {
@@ -149,13 +183,7 @@ public class ServerMain {
 
     public static void stopServer(){
         setStopFlag(true);
-        try {
-            if(serverSocket != null && !serverSocket.isClosed()){
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-            Logger.logError("Error closing server socket: " + e.getMessage());
-        }
+        stopAllServers();
     }
 
     public static boolean getStopFlag() {
@@ -170,27 +198,26 @@ public class ServerMain {
         }
     }
 
-    public static ServerThread getUser(String user) {
+    public static TcpServerThread getUser(String user) {
         synchronized (ServerMain.syncUsers) {
             return ServerMain.users.get(user);
         }
     }
 
-    public static ServerThread registerUser(String username, ServerThread user) {
+    public static TcpServerThread registerUser(String username, TcpServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread old = ServerMain.users.get(username);
+            TcpServerThread old = ServerMain.users.get(username);
             if(old == null) {
                 ServerMain.users.put(username, user);
-
-                logInfo("Registered user: " + username + "(Total: " + users.size() + ")");
+                logInfo("Registered user: " + username + " (Total: " + users.size() + ")");
             }
             return old;
         }
     }
 
-    public static ServerThread setUser(String username, ServerThread user) {
+    public static TcpServerThread setUser(String username, TcpServerThread user) {
         synchronized (ServerMain.syncUsers) {
-            ServerThread res = ServerMain.users.put(username, user);
+            TcpServerThread res = ServerMain.users.put(username, user);
             if (user == null) {
                 ServerMain.users.remove(username);
                 logInfo("User unregistered: " + username + " (Remaining: " + users.size() + ")");
@@ -201,31 +228,35 @@ public class ServerMain {
 
     public static String[] getUsers() {
         synchronized (ServerMain.syncUsers) {
-            return ServerMain.users.keySet().toArray(new String[0]);
+            String[] tcp = ServerMain.users.keySet().toArray(new String[0]);
+            String[] udp = udpServerThread.getUsers();
+            String[] res = Stream.concat(Arrays.stream(tcp), Arrays.stream(udp)).toArray(String[]::new);
+            return res;
         }
     }
 
     public static int getNumUsers() {
         synchronized (ServerMain.syncUsers) {
-            return ServerMain.users.keySet().size();
+            return ServerMain.users.keySet().size() + udpServerThread.getNumUsers();
         }
     }
 
     private static void logInfo(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logInfo(message);
         restorePrompt();
     }
 
     private static void logConnection(String message) {
-        System.out.println();
+        System.out.print(" ");
         Logger.logServer(message);
         restorePrompt();
     }
-
 
     private static void restorePrompt() {
         System.out.print("server> ");
         System.out.flush();
     }
 }
+
+
