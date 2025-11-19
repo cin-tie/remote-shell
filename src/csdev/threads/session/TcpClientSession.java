@@ -4,6 +4,7 @@ package csdev.threads.session;
 import csdev.Protocol;
 import csdev.messages.*;
 import csdev.server.ServerMain;
+import csdev.threads.TcpServerThread;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -35,7 +36,7 @@ public class TcpClientSession extends ClientSession {
         address = s.getInetAddress();
     }
 
-    public void processMessages() throws IOException {
+    public void processMessages(TcpServerThread thread) throws IOException {
         while (!disconnected && !gracefulShutdown) {
             Message msg = null;
             try {
@@ -54,7 +55,7 @@ public class TcpClientSession extends ClientSession {
 
             if(msg != null) {
                 logDebug("Received TCP message type: " + msg.getId() + " from " + username);
-                processMessage(msg);
+                processMessage(msg, thread);
             }
             if(Thread.interrupted()) {
                 logDebug("Thread interrupted, ending session");
@@ -63,10 +64,10 @@ public class TcpClientSession extends ClientSession {
         }
     }
 
-    private void processMessage(Message msg) throws IOException {
+    private void processMessage(Message msg, TcpServerThread thread) throws IOException {
         switch (msg.getId()) {
             case Protocol.CMD_CONNECT:
-                if(!connect((MessageConnect) msg))
+                if(!connect((MessageConnect) msg, thread))
                     return;
                 break;
 
@@ -100,7 +101,7 @@ public class TcpClientSession extends ClientSession {
         }
     }
 
-    boolean connect(MessageConnect msg) throws IOException {
+    boolean connect(MessageConnect msg, TcpServerThread thread) throws IOException {
         logInfo("TCP connecting attempt from: " + msg.username + "(" + msg.usernameFull + ")");
 
         if(ServerMain.isPasswordRequired()){
@@ -113,6 +114,7 @@ public class TcpClientSession extends ClientSession {
         }
 
         super.register(msg.username,  msg.password);
+        ServerMain.registerUser(username, thread);
 
         String serverOS = System.getProperty("os.name") + " " + System.getProperty("os.version");
         String serverVersion = "Remote Shell server 1.1";

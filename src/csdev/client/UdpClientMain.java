@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Main class of client application using UDP protocol
  * <p>Remote shell client for MacOS/Linux/Unix servers
  * <br>Use arguments: userNic userFullName host [password]
- * @author cin-tie (modified)
- * @version 1.1
+ * @author cin-tie
+ * @version 1.2
  *
  */
 public class UdpClientMain {
@@ -307,7 +307,6 @@ public class UdpClientMain {
                 bis.read(fileData);
             }
 
-            // Attach file path info in filePath field, same as before
             return new MessageUpload(file.getName(), targetDir, fileData, overwrite);
 
         } catch (IOException e) {
@@ -364,7 +363,6 @@ public class UdpClientMain {
         if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
 
-            // Для команд загрузки файлов используем фрагментированную отправку
             if (msg.getId() == Protocol.CMD_UPLOAD && ((MessageUpload) msg).fileData.length > CLIENT_MAX_FRAGMENT_SIZE) {
                 handleFragmentedUpload((MessageUpload) msg, socket, s.serverAddress, Protocol.PORT, in);
                 return true;
@@ -424,9 +422,6 @@ public class UdpClientMain {
         return false;
     }
 
-    /**
-     * Handle sending a large file by fragmentation (client side upload).
-     */
     private static void handleFragmentedUpload(MessageUpload up, DatagramSocket socket, InetAddress address, int port, Scanner in)
             throws IOException, ClassNotFoundException {
 
@@ -437,7 +432,6 @@ public class UdpClientMain {
         Logger.logInfo("Starting fragmented upload: " + up.fileName + " size=" + fileData.length +
                 " fragments=" + totalFragments + " fileId=" + fileId);
 
-        // Отправляем начальный фрагмент с метаданными
         for (int fragmentIndex = 0; fragmentIndex < totalFragments; fragmentIndex++) {
             int start = fragmentIndex * CLIENT_MAX_FRAGMENT_SIZE;
             int end = Math.min(start + CLIENT_MAX_FRAGMENT_SIZE, fileData.length);
@@ -453,12 +447,10 @@ public class UdpClientMain {
                 fragmentType = MessageFragment.FRAGMENT_MIDDLE;
             }
 
-            // Для первого фрагмента добавляем метаданные
             byte[] payload;
             int payloadSize;
 
             if (fragmentType == MessageFragment.FRAGMENT_START) {
-                // Создаем JSON с метаданными
                 String metadataJson = String.format(
                         "{\"fileName\":\"%s\",\"targetDir\":\"%s\",\"overwrite\":%b,\"fileSize\":%d}",
                         escapeJson(up.fileName),
@@ -468,19 +460,15 @@ public class UdpClientMain {
                 );
                 byte[] metadataBytes = metadataJson.getBytes("UTF-8");
 
-                // Формируем payload: [4 байта длина метаданных][метаданные][данные файла]
                 payloadSize = 4 + metadataBytes.length + chunk.length;
                 payload = new byte[payloadSize];
 
-                // Записываем длину метаданных (big-endian)
                 payload[0] = (byte) ((metadataBytes.length >> 24) & 0xFF);
                 payload[1] = (byte) ((metadataBytes.length >> 16) & 0xFF);
                 payload[2] = (byte) ((metadataBytes.length >> 8) & 0xFF);
                 payload[3] = (byte) (metadataBytes.length & 0xFF);
 
-                // Копируем метаданные
                 System.arraycopy(metadataBytes, 0, payload, 4, metadataBytes.length);
-                // Копируем данные файла
                 System.arraycopy(chunk, 0, payload, 4 + metadataBytes.length, chunk.length);
             } else {
                 payload = chunk;
@@ -491,7 +479,6 @@ public class UdpClientMain {
                     fragmentType, totalFragments, fragmentIndex, fileId, up.fileName, payload, payloadSize
             );
 
-            // Отправляем фрагмент с повторными попытками
             boolean ackReceived = false;
             int attempts = 0;
 
@@ -500,7 +487,6 @@ public class UdpClientMain {
                 sendMessage(socket, address, port, fragment);
                 Logger.logDebug("Sent upload fragment " + fragmentIndex + "/" + (totalFragments - 1) + " attempt=" + attempts);
 
-                // Ждем подтверждения
                 Message response = recieveMessage(socket, CLIENT_FRAGMENT_ACK_TIMEOUT);
 
                 if (response instanceof MessageFragmentResult) {
@@ -530,7 +516,6 @@ public class UdpClientMain {
             }
         }
 
-        // Ждем финальный результат от сервера
         Logger.logInfo("All fragments uploaded, waiting for final result...");
         Message finalResult = recieveMessage(socket, 30000);
 
@@ -543,13 +528,8 @@ public class UdpClientMain {
         }
     }
 
-    /**
-     * Обработка ACK для исходящих фрагментов (в текущей реализации не требуется,
-     * так как мы обрабатываем ACK в основном цикле отправки)
-     */
     private static void handleFragmentAck(MessageFragmentResult ack, DatagramSocket socket,
                                           InetAddress address, int port) throws IOException {
-        // ACK уже обрабатываются в основном цикле отправки фрагментов
         Logger.logDebug("Received fragment ACK: fileId=" + ack.fileId + " index=" + ack.fragmentIndex);
     }
 
@@ -678,13 +658,11 @@ public class UdpClientMain {
     static void saveFileToDisk(byte[] fileData, String filePath, long dataSize, String fileName) throws IOException {
         File file = new File(filePath);
 
-        // 🟩 Если пользователь указал директорию — автоматически добавляем имя файла
         if (file.isDirectory()) {
             System.out.println("Target is a directory. Appending filename automatically.");
             file = new File(file, fileName);
         }
 
-        // 🟩 Если путь заканчивается "/" — значит указана директория
         if (filePath.endsWith(File.separator)) {
             file = new File(filePath + fileName);
         }
@@ -694,7 +672,6 @@ public class UdpClientMain {
             parentDir.mkdirs();
         }
 
-        // 🟩 Если файл существует — спрашиваем на перезапись
         if (file.exists()) {
             System.out.print("File already exists. Overwrite? (y/n) [n]: ");
             Scanner in = new Scanner(System.in);
@@ -726,9 +703,6 @@ public class UdpClientMain {
         System.out.println("Current directory: " + msg.currentDirectory);
     }
 
-    /**
-     * Handle incoming file fragment (from server -> client) and assemble.
-     */
     private static void handleFileFragment(MessageFragment msg, DatagramSocket socket, InetAddress address, int port, Scanner in) throws IOException {
         FileAssemblySession session = assemblySessions.get(msg.fileId);
 

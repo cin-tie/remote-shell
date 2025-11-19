@@ -27,8 +27,8 @@ public class UdpServerThread extends Thread {
     private boolean running = true;
     private byte[] buffer = new byte[65536];
 
-    private static final int MAX_FRAGMENT_SIZE = 4000; // must match client
-    private static final int FRAGMENT_TIMEOUT = 5000; // ms
+    private static final int MAX_FRAGMENT_SIZE = 4000;
+    private static final int FRAGMENT_TIMEOUT = 5000;
     private static final int MAX_RETRIES = 5;
 
     private ConcurrentHashMap<String, UdpClientSession> sessions = new ConcurrentHashMap<>();
@@ -42,15 +42,13 @@ public class UdpServerThread extends Thread {
         public int receivedFragments;
         public byte[][] fragments;
         public long lastActivity;
-        public boolean isDownload; // true = download (server->client), false = upload (client->server)
+        public boolean isDownload;
 
-        // upload metadata (for uploads)
         public String fileName;
         public String targetDir;
         public boolean overwrite;
         public long fileSize;
 
-        // for download sessions: ack bookkeeping
         public boolean[] acked;
 
         public FileTransferSession(String fileId, String clientKey, int totalFragments, boolean isDownload) {
@@ -82,7 +80,6 @@ public class UdpServerThread extends Thread {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
 
-                // copy packet data
                 DatagramPacket pCopy = new DatagramPacket(packet.getData(), packet.getLength(), packet.getAddress(), packet.getPort());
                 executor.execute(() -> processPacket(pCopy));
             } catch (IOException e){
@@ -115,9 +112,7 @@ public class UdpServerThread extends Thread {
             String clientKey = getClientKey(packet.getAddress(), packet.getPort());
             UdpClientSession session = sessions.get(clientKey);
 
-            // allow CONNECT even if session == null
             if(session == null && msg.getId() != Protocol.CMD_CONNECT){
-                // But allow fragment ACKs to be processed as well even if session missing? no -> require session
                 Logger.logWarning("UDP packet from unknown client: " + clientKey + " msgId=" + msg.getId());
                 return;
             }
@@ -129,7 +124,6 @@ public class UdpServerThread extends Thread {
     }
 
     private void processMessage(Message msg, InetAddress address, int port, UdpClientSession session) throws IOException {
-        // special handling: MessageFragment (fragment transfer) or MessageFragmentResult (ACK)
         if (msg instanceof MessageFragment) {
             handleFragment((MessageFragment) msg, address, port, session);
             return;
@@ -274,7 +268,6 @@ public class UdpServerThread extends Thread {
     private void handleUpload(MessageUpload msg, InetAddress address, int port, UdpClientSession session) throws IOException {
         if (session == null) return;
 
-        // Existing simple upload (non-fragmented)
         Logger.logInfo("Uploading file via UDP from " + session.getUsername() + ": " + msg.fileName);
 
         try {
@@ -360,10 +353,6 @@ public class UdpServerThread extends Thread {
         Logger.logInfo("UDP Small file downloaded: " + filePath + " [size=" + fileSize + " bytes]");
     }
 
-    /**
-     * Send a large file by fragmentation (server -> client).
-     * Uses sequential send + wait-for-ACK pattern (simple/reliable).
-     */
     private void sendLargeFileFragmented(File file, UdpClientSession session, InetAddress address, int port, String filePath) {
         new Thread(() -> {
             try {
@@ -403,11 +392,8 @@ public class UdpServerThread extends Thread {
                     int tries = 0;
                     while (!ackReceived && tries < MAX_RETRIES) {
                         tries++;
-                        // send fragment
                         sendMessage(address, port, frag);
                         Logger.logDebug("Sent fragment to " + session.getUsername() + " idx=" + idx + " try=" + tries);
-
-                        // wait (synchronized on session object) for ack flag updated by handleFragmentAck
                         long waitStart = System.currentTimeMillis();
                         synchronized (fts) {
                             long waited = 0;
@@ -438,10 +424,8 @@ public class UdpServerThread extends Thread {
                     }
                 }
 
-                // finished sending fragments -> no further action required (client will assemble and ask to save)
                 Logger.logInfo("Fragmented download finished for " + session.getUsername() + " fileId=" + fileId);
-                MessageDownloadResult finalMsg =
-                        new MessageDownloadResult(file.getName(), file.length(), null, false, true);
+                MessageDownloadResult finalMsg = new MessageDownloadResult(file.getName(), file.length(), null, false, true);
                 session.sendMessage(finalMsg);
                 fileSessions.remove(getSessionKey(fileId, getClientKey(address, port)));
             } catch (Exception e) {
@@ -522,30 +506,29 @@ public class UdpServerThread extends Thread {
         socket.close();
     }
 
+    public int getNumUsers(){
+        return sessions.keySet().size();
+    }
+
+    public String[] getUsers(){
+        return sessions.keySet().toArray(new String[0]);
+    }
+
     public void removeSession(String clientKey) {
         sessions.remove(clientKey);
     }
 
-    /**
-     * Handle incoming fragment messages (from client to server).
-     * For uploads:
-     *  - first fragment contains header: [4 bytes headerLen][headerJson UTF-8][payload bytes]
-     *  - headerJson contains fileName, targetDir, overwrite, fileSize
-     */
     private void handleFragment(MessageFragment msg, InetAddress address, int port, UdpClientSession session) {
         String clientKey = getClientKey(address, port);
         String key = getSessionKey(msg.fileId, clientKey);
 
         try {
-            // If this is a START fragment and no session exists, parse header (for uploads)
             FileTransferSession fts = fileSessions.get(key);
 
             if (fts == null && msg.fragmentType == MessageFragment.FRAGMENT_START) {
-                // Parse header from payload
                 byte[] payload = msg.data;
                 if (payload == null || payload.length < 4) {
                     Logger.logWarning("Invalid fragment start without header from " + clientKey);
-                    // send negative ACK
                     MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                     sendMessage(address, port, nack);
                     return;
@@ -560,7 +543,6 @@ public class UdpServerThread extends Thread {
                 byte[] headerBytes = new byte[headerLen];
                 System.arraycopy(payload, 4, headerBytes, 0, headerLen);
                 String headerJson = new String(headerBytes, "UTF-8");
-                // simple parsing: expect {"fileName":"...","targetDir":"...","overwrite":true,"fileSize":1234}
                 String fn = extractJsonString(headerJson, "fileName");
                 String td = extractJsonString(headerJson, "targetDir");
                 String ovStr = extractJsonString(headerJson, "overwrite");
@@ -571,7 +553,6 @@ public class UdpServerThread extends Thread {
                     fileSize = Long.parseLong(fsStr);
                 } catch (Exception ignore) {}
 
-                // create session
                 fts = new FileTransferSession(msg.fileId, clientKey, msg.totalFragments, false);
                 fts.fileName = fn;
                 fts.targetDir = td;
@@ -579,7 +560,6 @@ public class UdpServerThread extends Thread {
                 fts.fileSize = fileSize;
                 fileSessions.put(key, fts);
                 Logger.logInfo("Created upload session for " + clientKey + " fileId=" + msg.fileId + " fileName=" + fn + " totalFragments=" + msg.totalFragments);
-                // store the remainder of payload (after header)
                 int remainder = payload.length - 4 - headerLen;
                 if (remainder > 0) {
                     byte[] chunk = new byte[remainder];
@@ -588,27 +568,22 @@ public class UdpServerThread extends Thread {
                     fts.receivedFragments++;
                 }
             } else if (fts == null) {
-                // no session and not a start fragment -> reject
                 Logger.logWarning("Received non-start fragment for unknown upload session: fileId=" + msg.fileId + " from " + clientKey);
                 MessageFragmentResult nack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, false);
                 sendMessage(address, port, nack);
                 return;
             } else {
-                // normal fragment: add bytes (for start case header was removed already or chunk was stored)
                 if (fts.fragments[msg.fragmentIndex] == null) {
                     fts.fragments[msg.fragmentIndex] = msg.data;
                     fts.receivedFragments++;
                 } else {
-                    // duplicate fragment? ignore
                     Logger.logDebug("Duplicate fragment " + msg.fragmentIndex + " for " + msg.fileId + " from " + clientKey);
                 }
             }
 
-            // send ACK
             MessageFragmentResult ack = new MessageFragmentResult(msg.fileId, msg.fragmentIndex, true);
             sendMessage(address, port, ack);
 
-            // if all received -> assemble and save
             if (fts.receivedFragments == fts.totalFragments) {
                 Logger.logInfo("All fragments received for upload fileId=" + msg.fileId + " from " + clientKey + " assembling...");
                 assembleAndSaveUpload(fts, address, port, session);
@@ -623,10 +598,6 @@ public class UdpServerThread extends Thread {
         }
     }
 
-    /**
-     * Handle incoming fragment ACK from client (client acknowledging server->client fragment).
-     * Locate corresponding FileTransferSession and set ack flag and notify.
-     */
     private void handleFragmentAck(MessageFragmentResult ack, InetAddress address, int port) {
         String clientKey = getClientKey(address, port);
         String key = getSessionKey(ack.fileId, clientKey);
@@ -636,7 +607,6 @@ public class UdpServerThread extends Thread {
             return;
         }
         if (!fts.isDownload) {
-            // ack belongs to download sessions only
             Logger.logWarning("Received fragment ACK for upload-session (?) fileId=" + ack.fileId + " from " + clientKey);
             return;
         }
@@ -658,7 +628,6 @@ public class UdpServerThread extends Thread {
 
     private void assembleAndSaveUpload(FileTransferSession fts, InetAddress address, int port, UdpClientSession session) {
         try {
-            // calculate total size
             int totalSize = 0;
             for (int i = 0; i < fts.totalFragments; i++) {
                 byte[] b = fts.fragments[i];
@@ -673,7 +642,6 @@ public class UdpServerThread extends Thread {
 
             byte[] fileData = baos.toByteArray();
 
-            // determine target dir
             String targetDir = (fts.targetDir == null || fts.targetDir.isEmpty()) ? (session == null ? "." : session.getCurrentDirectory()) : fts.targetDir;
             File td = new File(targetDir);
             if (!td.exists() || !td.isDirectory()) {
@@ -706,25 +674,21 @@ public class UdpServerThread extends Thread {
     }
 
     private String extractJsonString(String json, String key) {
-        // VERY simple extractor (works with simple json created by client)
         try {
             String pattern = "\"" + key + "\":";
             int pos = json.indexOf(pattern);
             if (pos < 0) return "";
             int start = pos + pattern.length();
-            // skip spaces
             while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\"')) {
                 if (json.charAt(start) == '\"') break;
                 start++;
             }
-            // if value starts with quote
             if (json.charAt(start) == '\"') {
                 start++;
                 int end = json.indexOf("\"", start);
                 if (end < 0) return json.substring(start);
                 return json.substring(start, end);
             } else {
-                // boolean or number
                 int end = start;
                 while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '.' || json.charAt(end) == '-' || json.charAt(end) == 't' || json.charAt(end) == 'f' || json.charAt(end) == 'r' || json.charAt(end) == 'u' || json.charAt(end) == 'e' || json.charAt(end) == 'a' || json.charAt(end) == 'l' || json.charAt(end) == 's' || json.charAt(end) == 'n' )) {
                     end++;

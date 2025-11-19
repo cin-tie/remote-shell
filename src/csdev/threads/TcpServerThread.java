@@ -34,7 +34,7 @@ public class TcpServerThread extends Thread {
         logDebug("TCP Client session started: " + clientSession.getClientInfo());
 
         try {
-            clientSession.processMessages();
+            clientSession.processMessages(this);
         } catch (Exception e) {
             if (!clientSession.isGracefulShutdown()) {
                 logError("Unexpected error in TCP client session: " + e.getMessage());

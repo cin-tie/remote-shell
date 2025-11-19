@@ -11,7 +11,9 @@ import csdev.utils.Logger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 /**
  * <p>Main class of server application for remote shell
@@ -226,13 +228,16 @@ public class ServerMain {
 
     public static String[] getUsers() {
         synchronized (ServerMain.syncUsers) {
-            return ServerMain.users.keySet().toArray(new String[0]);
+            String[] tcp = ServerMain.users.keySet().toArray(new String[0]);
+            String[] udp = udpServerThread.getUsers();
+            String[] res = Stream.concat(Arrays.stream(tcp), Arrays.stream(udp)).toArray(String[]::new);
+            return res;
         }
     }
 
     public static int getNumUsers() {
         synchronized (ServerMain.syncUsers) {
-            return ServerMain.users.keySet().size();
+            return ServerMain.users.keySet().size() + udpServerThread.getNumUsers();
         }
     }
 

@@ -1,0 +1,2 @@
+Актуальная версия на гитхаб
+https://github.com/cin-tie/remote-shell
