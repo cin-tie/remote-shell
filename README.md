@@ -21,13 +21,14 @@ The Remote Shell system consists of two main components:
 
 ## Features
 
-| Feature                | Description                                                |
-|------------------------|------------------------------------------------------------|
-| Authentication         | User-based connection system with optional server password |
-| Remote Execution       | Execute shell commands on remote server                    |
-| File transfer          | Upload/Download files between client and server            |
-| Directory file transfer| Change and query working directories                       |
-| Multi-threaded         | Handles multiple clients simultaneously                     |
+| Feature                 | Description                                                |
+|-------------------------|------------------------------------------------------------|
+| Authentication          | User-based connection system with optional server password |
+| Remote Execution        | Execute shell commands on remote server                    |
+| File transfer           | Upload/Download files between client and server            |
+| Directory file transfer | Change and query working directories                       |
+| Multi-threaded          | Handles multiple clients simultaneously                    |
+| Different protocols     | Uses different protocols of connection(tcp/udp)            |
 
 ## Architecture
 ```
@@ -83,8 +84,11 @@ java -cp build csdev.server.ServerMain "password"
 # Localhost with password
 ./scripts/client.sh -u john "John Doe" -p "password"
 
+# With protocol choosing
+./scripts/client.sh -pr tcp
+
 # All arguments specified
-./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password
+./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password -pr upd
 
 # Or run manually
 java -cp build ** john "John Doe" 127.0.0.1 [password]
@@ -92,11 +96,13 @@ java -cp build ** john "John Doe" 127.0.0.1 [password]
 
 #### Client argument
 
-| Parameter   | Required | Description                                  |
-|-------------|----------|----------------------------------------------|
-| `-u/--user` | YES*     | Short username and full name for connection  |
-| `-h/--host` | NO       | Server hostname(default: localhost)          |
-| `-p/--pass` | NO       | Server password if authentication is enabled |
+| Parameter        | Required | Description                                  |
+|------------------|----------|----------------------------------------------|
+| `-u/--user`      | YES*     | Short username and full name for connection  |
+| `-h/--host`      | NO       | Server hostname(default: localhost)          |
+| `-p/--pass`      | NO       | Server password if authentication is enabled |
+| `-pr/--protocol` | NO       | Protocol of connection                       |
+
 
 *If `--user` is not provided, client auto-generate "guest_from_ip" username
 
