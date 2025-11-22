@@ -14,6 +14,12 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+
+/**
+ * <p>RMI server thread for handling client connections
+ * @author cin-tie
+ * @version 1.0
+ */
 public class RmiServerThread extends Thread implements RemoteShellService{
 
     private Registry registry;
