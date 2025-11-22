@@ -11,8 +11,8 @@ import java.rmi.RemoteException;
  * @version 1.0
  */
 public interface RemoteShellService extends Remote {
-    MessageConnectResult connect(MessageConnect msg) throws RemoteException;
-    void disconnect(MessageDisconnect msg) throws RemoteException;
+    MessageConnectResult connect(MessageConnect msg, String sessionId) throws RemoteException;
+    void disconnect(MessageDisconnect msg, String sessionId) throws RemoteException;
 
-    MessageResult processCommand(Message msg)  throws RemoteException;
+    MessageResult processCommand(Message msg, String sessionId)  throws RemoteException;
 }
