@@ -58,8 +58,9 @@ if [ -n "$PASS" ]; then
 else
     echo "No password provided - connection may fail if server requires authentication"
 fi
-
-if [ "$PROTOCOL" = "udp" ]; then
+if [ "$PROTOCOL" = "rmi" ]; then
+    java -cp build csdev.client.RmiClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
+elif [ "$PROTOCOL" = "udp" ]; then
     java -cp build csdev.client.UdpClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
 else
     java -cp build csdev.client.TcpClientMain "$USER_NICK" "$USER_FULL" "$HOST" "$PASS"
