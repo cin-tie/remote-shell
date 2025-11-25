@@ -26,6 +26,7 @@ public class ServerStopThread extends CommandThread {
     public ServerStopThread() {
         fin = new Scanner(System.in);
         ServerMain.setStopFlag(false);
+        this.setName("ServerStopThread");
 
         // Register commands handler
         putHandler(cmd, cmdL, new CmdHandler() {

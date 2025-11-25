@@ -28,6 +28,7 @@ public class TcpServerThread extends Thread {
         this.clientSession = new TcpClientSession(s);
         this.setDaemon(true);
         logDebug("TCP Server thread created for: " + clientSession.getClientInfo());
+        this.setName("TCPServerThread");
     }
 
     public void run() {

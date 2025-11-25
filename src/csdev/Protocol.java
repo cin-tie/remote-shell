@@ -32,11 +32,13 @@ interface RESULT{
  */
 interface PORT{
     int PORT = 8072;
+    int RMI_PORT = 8073;
 }
 
 interface PROTOCOL{
     String TCP = "TCP";
     String UDP = "UDP";
+    String RMI = "RMI";
 }
 
 /**
@@ -51,5 +53,5 @@ public class Protocol implements CMD, RESULT, PORT,  PROTOCOL{
     public static boolean validID(byte id){
         return id >= CMD_MIN && id <= CMD_MAX;
     }
-    public static boolean validProtocol(String protocol){ return TCP.equalsIgnoreCase(protocol) || UDP.equalsIgnoreCase(protocol); }
+    public static boolean validProtocol(String protocol){ return TCP.equalsIgnoreCase(protocol) || UDP.equalsIgnoreCase(protocol) || RMI.equalsIgnoreCase(protocol); }
 }
