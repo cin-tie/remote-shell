@@ -147,10 +147,12 @@ public class RmiClientMain {
     }
 
     static boolean processCommand(RmiSession s, Message msg, Scanner in) throws IOException, ClassNotFoundException {
-        if (msg != null && msg instanceof MessageResult) {
+        if (msg != null) {
             Logger.logDebug("Sending command type: " + msg.getId());
             try {
-                MessageResult res = (MessageResult) msg;
+
+                MessageResult res = s.remoteService.processCommand(msg, s.sessionId);
+
                 if (res.Error()) {
                     Logger.logError("Server error: " + res.getErrorMessage());
                     System.out.println("Error: " + res.getErrorMessage());
@@ -318,7 +320,7 @@ public class RmiClientMain {
         System.out.println("=".repeat(60));
         System.out.println("User: " + s.usernameFull + " (" + s.username + ")");
         System.out.println("Server: " + s.serverOS);
-        System.out.println("Protocol: UDP");
+        System.out.println("Protocol: RMI");
         System.out.println("Current directory: " + s.currentDirectory);
         displayHelp();
     }
