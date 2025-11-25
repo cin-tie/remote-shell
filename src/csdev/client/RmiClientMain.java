@@ -42,7 +42,7 @@ public class RmiClientMain {
 
         try {
             Logger.logClient("RMI Client initialized");
-            Registry registry = LocateRegistry.getRegistry(host);
+            Registry registry = LocateRegistry.getRegistry(host, Protocol.RMI_PORT);
             RemoteShellService remoteShellService = (RemoteShellService) registry.lookup("RmiServerThread");
             session(args[0], args[1], password, host, remoteShellService);
         } catch (Exception e) {

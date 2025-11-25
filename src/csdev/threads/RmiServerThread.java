@@ -296,13 +296,22 @@ public class RmiServerThread extends Thread implements RemoteShellService{
         running = false;
         try{
             if(registry != null){
-                registry.unbind("RmiServerThread");
+                try {
+                    registry.unbind("RmiServerThread");
+                } catch (Exception e) {
+                    Logger.logDebug("RMI unbind warning: " + e.getMessage());
+                }
             }
-            UnicastRemoteObject.unexportObject(this, true);
         } catch(Exception e){
             Logger.logError("Error stopping RMI Server: " + e.getMessage());
+        } finally {
+            try {
+                UnicastRemoteObject.unexportObject(this, true);
+            } catch (Exception e) {
+                Logger.logDebug("RMI unexport warning: " + e.getMessage());
+            }
+            Logger.logServer("RMI Server stopped");
         }
-        Logger.logServer("RMI Server stopped");
     }
 
     protected void logInfo(String message) {

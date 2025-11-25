@@ -66,7 +66,7 @@ public class ServerMain {
             try {
                 rmiServerThread = new RmiServerThread();
                 rmiServerThread.start();
-                Logger.logServer("RMI Server started on port " + Protocol.PORT);
+                Logger.logServer("RMI Server started on port " + Protocol.RMI_PORT);
             } catch (IOException e) {
                 Logger.logError("Failed to start RMI server: " + e.getMessage());
             }

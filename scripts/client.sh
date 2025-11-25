@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
             echo "    -u <nick> \"<full name>\""
             echo "    -h hostname"
             echo "    -p password"
-            echo "    -pr tcp|udp (default: tcp)"
+            echo "    -pr tcp|udp|rmi (default: tcp)"
             exit 1
             ;;
     esac
