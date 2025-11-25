@@ -163,7 +163,7 @@ public class UdpClientMain {
             s.connected = false;
             MessageDisconnect messageDisconnect = new MessageDisconnect("Client shutdown");
             sendMessage(socket, s.serverAddress, Protocol.PORT, messageDisconnect);
-            Logger.logInfo("Disconnected from TCP server");
+            Logger.logInfo("Disconnected from UDP server");
         }
     }
 

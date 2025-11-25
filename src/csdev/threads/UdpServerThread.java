@@ -70,6 +70,7 @@ public class UdpServerThread extends Thread {
         this.running = true;
         this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
         this.setDaemon(true);
+        this.setName("UdpServerThread");
     }
 
     public void run() {

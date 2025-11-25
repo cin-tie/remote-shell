@@ -23,7 +23,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Starting server on port 8072..."
+echo "Starting server on port 8072 (TCP/UDP) and 8073 (RMI)..."
 
 if [ -n "$PASSWORD" ]; then
     echo "Server Password: $PASSWORD"

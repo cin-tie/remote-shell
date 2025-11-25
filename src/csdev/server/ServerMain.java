@@ -1,6 +1,7 @@
 package csdev.server;
 
 import csdev.Protocol;
+import csdev.threads.RmiServerThread;
 import csdev.threads.ServerStopThread;
 import csdev.threads.TcpServerThread;
 import csdev.threads.UdpServerThread;
@@ -27,6 +28,7 @@ public class ServerMain {
     public static final int MAX_USERS = 50;
     private static ServerSocket tcpServerSocket;
     private static UdpServerThread udpServerThread;
+    private static RmiServerThread rmiServerThread;
     private static String serverPassword;
     private static boolean passwordRequired = false;
     private static Object syncFlags = new Object();
@@ -59,6 +61,14 @@ public class ServerMain {
                 Logger.logServer("UDP Server started on port " + Protocol.PORT);
             } catch (IOException e) {
                 Logger.logError("Failed to start UDP server: " + e.getMessage());
+            }
+
+            try {
+                rmiServerThread = new RmiServerThread();
+                rmiServerThread.start();
+                Logger.logServer("RMI Server started on port " + Protocol.RMI_PORT);
+            } catch (IOException e) {
+                Logger.logError("Failed to start RMI server: " + e.getMessage());
             }
 
             Logger.logServer("TCP Server initialized on port " + tcpServerSocket.getLocalPort());
@@ -145,6 +155,16 @@ public class ServerMain {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 Logger.logWarning("Interrupted while waiting for UDP server to stop");
+            }
+        }
+
+        if(rmiServerThread != null && rmiServerThread.isAlive()){
+            rmiServerThread.stopServer();
+            try {
+                rmiServerThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Logger.logWarning("Interrupted while waiting for RMI server to stop");
             }
         }
     }
