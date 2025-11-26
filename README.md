@@ -21,13 +21,14 @@ The Remote Shell system consists of two main components:
 
 ## Features
 
-| Feature                | Description                                                |
-|------------------------|------------------------------------------------------------|
-| Authentication         | User-based connection system with optional server password |
-| Remote Execution       | Execute shell commands on remote server                    |
-| File transfer          | Upload/Download files between client and server            |
-| Directory file transfer| Change and query working directories                       |
-| Multi-threaded         | Handles multiple clients simultaneously                     |
+| Feature                 | Description                                                |
+|-------------------------|------------------------------------------------------------|
+| Authentication          | User-based connection system with optional server password |
+| Remote Execution        | Execute shell commands on remote server                    |
+| File transfer           | Upload/Download files between client and server            |
+| Directory file transfer | Change and query working directories                       |
+| Multi-threaded          | Handles multiple clients simultaneously                    |
+| Different protocols     | Uses different protocols of connection(tcp/udp/rmi)          |
 
 ## Architecture
 ```
@@ -83,8 +84,11 @@ java -cp build csdev.server.ServerMain "password"
 # Localhost with password
 ./scripts/client.sh -u john "John Doe" -p "password"
 
+# With protocol choosing
+./scripts/client.sh -pr rmi
+
 # All arguments specified
-./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password
+./scripts/client.sh -u john "John Doe" -h 127.0.0.1 -p password -pr upd
 
 # Or run manually
 java -cp build ** john "John Doe" 127.0.0.1 [password]
@@ -92,21 +96,23 @@ java -cp build ** john "John Doe" 127.0.0.1 [password]
 
 #### Client argument
 
-| Parameter   | Required | Description                                  |
-|-------------|----------|----------------------------------------------|
-| `-u/--user` | YES*     | Short username and full name for connection  |
-| `-h/--host` | NO       | Server hostname(default: localhost)          |
-| `-p/--pass` | NO       | Server password if authentication is enabled |
+| Parameter        | Required | Description                                  |
+|------------------|----------|----------------------------------------------|
+| `-u/--user`      | YES*     | Short username and full name for connection  |
+| `-h/--host`      | NO       | Server hostname(default: localhost)          |
+| `-p/--pass`      | NO       | Server password if authentication is enabled |
+| `-pr/--protocol` | NO       | Protocol of connection (TCP/UDP/RMI)         |
+
 
 *If `--user` is not provided, client auto-generate "guest_from_ip" username
 
 ## Protocol
 ### Connection Details
-| Settings     | Value                                    |
-|--------------|------------------------------------------|
-| Default Port | `8072` (configurable in `Protocol.java`) |
-| Transport    | TCP with Java Objects Serialization      |
-| Timeout      | 30 seconds for command execution         |
+| Settings     | Value                                                               |
+|--------------|---------------------------------------------------------------------|
+| Default Port | `8072` (configurable in `Protocol.java`), `8073` for RMI connection |
+| Transport    | TCP/UDP/RMI with Java Objects Serialization                         |
+| Timeout      | 30 seconds for command execution                                    |
 
 ### Message Flow
 1. **Connect** → Client establishes connection with credentials
@@ -123,10 +129,12 @@ java -cp build ** john "John Doe" 127.0.0.1 [password]
 | `DEBUG`  | Detailed debugging information |
 | `SERVER` | Server-specific events         |
 | `CLIENT` | Client-specific events         |
+
 Enable debug by setting `Logger.debugEnabled = true` for detailed troubleshooting
+
 ---
 
-**Version**: 1.2
+**Version**: 1.4
 **Author**: cin-tie
 **Licence**: Educational Use
 
