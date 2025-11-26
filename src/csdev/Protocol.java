@@ -33,6 +33,7 @@ interface RESULT{
 interface PORT{
     int PORT = 8072;
     int RMI_PORT = 8073;
+    int RMI_OBJECT_PORT = 8074;
 }
 
 interface PROTOCOL{
