@@ -35,7 +35,7 @@ public class RmiServerThread extends Thread implements RemoteShellService{
     @Override
     public void run() {
         try {
-            RemoteShellService stub = (RemoteShellService) UnicastRemoteObject.exportObject(this, 0);
+            RemoteShellService stub = (RemoteShellService) UnicastRemoteObject.exportObject(this, Protocol.RMI_OBJECT_PORT);
             registry = LocateRegistry.createRegistry(Protocol.RMI_PORT);
             registry.rebind("RmiServerThread", stub);
 
