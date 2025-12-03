@@ -275,7 +275,7 @@ public class RmiServerThread extends Thread implements RemoteShellService{
             MessageGetdirResult result = new MessageGetdirResult(session.getCurrentDirectory(), 0);
             return result;
         } catch (Exception e) {
-            logError("UDP Get directory failed for " + session.getUsername() + ": " + e.getMessage());
+            logError("RMI Get directory failed for " + session.getUsername() + ": " + e.getMessage());
             MessageGetdirResult result = new MessageGetdirResult("Get directory failed: " + e.getMessage());
             return result;
         }
